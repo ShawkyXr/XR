@@ -1,0 +1,2594 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>XR Social Platform</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Archivo:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0a;
+            --bg-secondary: #141414;
+            --bg-tertiary: #1e1e1e;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --inside-box: #141414;
+            --text-tertiary: #6b6b6b;
+            --accent-primary: #ffffff;
+            --accent-secondary: #dadada;
+            --accent-glow: rgba(193, 193, 193, 0.3);
+            --border-color: #2a2a2a;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+            --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
+            --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.7);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        [data-theme="light"] {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f5f5f5;
+            --bg-tertiary: #e8e8e8;
+            --text-primary: #1a1a1a;
+            --text-secondary: #4a4a4a;
+            --text-tertiary: #8a8a8a;
+            --inside-box: #f2f1f1;
+            --accent-primary: #000000;
+            --accent-secondary: #181818;
+            --accent-glow: rgba(42, 42, 42, 0.2);
+            --border-color: #d0d0d0;
+            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+            --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
+            --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.16);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Archivo', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        /* Navigation Bar */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 70px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2rem;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            box-shadow: var(--shadow-sm);
+        }
+
+        .nav-left {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            flex: 1;
+        }
+
+        .login-btn{
+            padding: 0.6rem 1.2rem;
+            border: none;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--text-secondary);
+            background: transparent;
+        }
+
+        .login-btn:hover{
+            color: var(--accent-primary);
+        }
+
+        .logo {
+            font-family: 'Space Mono', monospace;
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+            text-decoration: none;
+            letter-spacing: -0.02em;
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .logo::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: var(--accent-secondary);
+            border-radius: 50%;
+            box-shadow: 0 0 20px var(--accent-secondary);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.7; }
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 0.5rem;
+            list-style: none;
+            justify-content: center;
+            flex: 1;
+        }
+
+        .nav-link {
+            padding: 0.6rem 1.2rem;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-weight: 600;
+            border-radius: 8px;
+            transition: var(--transition);
+            position: relative;
+            overflow: visible;
+        }
+
+        .nav-link::before {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--accent-primary);
+            transform: scaleX(0);
+            transform-origin: left;
+            transition: var(--transition);
+        }
+
+        .nav-link:hover::before,
+        .nav-link.active::before {
+            transform: scaleX(1);
+        }
+
+        .nav-link:hover,
+        .nav-link.active {
+            color: var(--accent-primary);
+        }
+
+        .theme-toggle {
+            width: 50px;
+            height: 26px;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border-color);
+            border-radius: 20px;
+            cursor: pointer;
+            position: relative;
+            transition: var(--transition);
+        }
+
+        .theme-toggle:hover {
+            border-color: var(--accent-primary);
+        }
+
+        .theme-toggle-slider {
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: var(--accent-primary);
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: var(--transition);
+            box-shadow: 0 2px 8px var(--accent-glow);
+        }
+
+        .theme-toggle-slider.light {
+            left: 26px;
+            background: var(--accent-secondary);
+        }
+
+        /* Main Container */
+        .container {
+            margin-top: 70px;
+            min-height: calc(100vh - 70px);
+            padding: 2rem;
+        }
+
+        /* Auth Pages Styles */
+        .auth-container {
+            min-height: calc(100vh - 70px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .auth-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            padding: 3rem;
+            max-width: 480px;
+            width: 100%;
+            box-shadow: var(--shadow-lg);
+            animation: fadeInUp 0.6s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .auth-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+        }
+
+        .auth-header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+        }
+
+        .auth-logo {
+            font-family: 'Space Mono', monospace;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+            margin-bottom: 0.5rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .auth-logo::before {
+            content: '';
+            width: 12px;
+            height: 12px;
+            background: var(--accent-secondary);
+            border-radius: 50%;
+            box-shadow: 0 0 20px var(--accent-secondary);
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .auth-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .auth-subtitle {
+            color: var(--text-secondary);
+            font-size: 1rem;
+        }
+
+        .auth-form {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-group.row {
+            flex-direction: row;
+            gap: 1rem;
+        }
+
+        .form-group.row .form-field {
+            flex: 1;
+        }
+
+        .form-field {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .form-label {
+            font-weight: 500;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.9rem 1.2rem;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 4px var(--accent-glow);
+        }
+
+        .form-input::placeholder {
+            color: var(--text-tertiary);
+        }
+
+        .password-input-wrapper {
+            position: relative;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 1rem;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 1.2rem;
+            transition: var(--transition);
+            padding: 0.3rem;
+        }
+
+        .toggle-password:hover {
+            color: var(--accent-primary);
+        }
+
+        .form-options {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9rem;
+        }
+
+        .checkbox-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .checkbox-wrapper input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--accent-primary);
+        }
+
+        .checkbox-wrapper label {
+            color: var(--text-secondary);
+            cursor: pointer;
+        }
+
+        .forgot-password {
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: var(--transition);
+        }
+
+        .forgot-password:hover {
+            color: var(--accent-primary);
+        }
+
+        .auth-submit {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border: none;
+            border-radius: 10px;
+            color: var(--inside-box);
+            font-weight: 600;
+            font-size: 1.05rem;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 4px 20px var(--accent-glow);
+        }
+
+        .auth-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 30px var(--accent-glow);
+        }
+
+        .auth-submit:active {
+            transform: translateY(0);
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border-color);
+        }
+
+        .divider-text {
+            color: var(--text-tertiary);
+            font-size: 0.9rem;
+        }
+
+        .social-login {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .social-btn {
+            flex: 1;
+            padding: 0.9rem;
+            background: var(--bg-tertiary);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .social-btn:hover {
+            border-color: var(--accent-primary);
+            background: var(--bg-primary);
+        }
+
+        .auth-footer {
+            text-align: center;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+
+        .auth-footer a {
+            color: var(--accent-primary);
+            text-decoration: none;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .auth-footer a:hover {
+            color: var(--accent-secondary);
+        }
+
+        /* Home Page */
+        .home-hero {
+            max-width: 1200px;
+            margin: 4rem auto;
+            text-align: center;
+        }
+
+        .hero-title {
+            font-family: 'Space Mono', monospace;
+            font-size: 4rem;
+            font-weight: 700;
+            margin-bottom: 1.5rem;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: fadeInUp 0.8s ease;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .hero-subtitle {
+            font-size: 1.3rem;
+            color: var(--text-secondary);
+            margin-bottom: 3rem;
+            animation: fadeInUp 0.8s ease 0.2s backwards;
+        }
+
+        .home-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-bottom: 4rem;
+            animation: fadeInUp 0.8s ease 0.4s backwards;
+            flex-wrap: wrap;
+        }
+
+        .home-blogs-section {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            gap: 2rem;
+            flex-wrap: wrap;
+        }
+
+        .blog-search {
+            max-width: 400px;
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .home-blogs-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            gap: 2rem;
+            animation: fadeIn 0.8s ease;
+        }
+
+        .home-blog-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            overflow: hidden;
+            transition: var(--transition);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .home-blog-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--accent-primary);
+        }
+
+        .home-blog-header {
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+        }
+
+        .blog-author-avatar {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+            color: var(--inside-box);
+        }
+
+        .blog-author-info {
+            flex: 1;
+        }
+
+        .blog-author-name {
+            font-weight: 600;
+            font-size: 1rem;
+            color: var(--text-primary);
+            margin-bottom: 0.2rem;
+        }
+
+        .blog-date {
+            font-size: 0.85rem;
+            color: var(--text-tertiary);
+        }
+
+        .home-blog-content {
+            padding: 1.5rem;
+            flex: 1;
+        }
+
+        .home-blog-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            line-height: 1.3;
+        }
+
+        .home-blog-excerpt {
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .home-blog-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .blog-stats {
+            display: flex;
+            gap: 1.5rem;
+        }
+
+        .stat-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.5rem 0.8rem;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: var(--transition);
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .stat-btn:hover {
+            background: var(--bg-tertiary);
+            color: var(--accent-primary);
+        }
+
+        .read-more-btn {
+            padding: 0.5rem 1.2rem;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        .read-more-btn:hover {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: white;
+        }
+
+        .room-search {
+            max-width: 600px;
+            margin: 0 auto 3rem;
+            position: relative;
+            animation: fadeInUp 0.8s ease 0.4s backwards;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 1rem 1.5rem;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-family: inherit;
+            transition: var(--transition);
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 4px var(--accent-glow);
+        }
+
+        .room-type-toggle {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            margin-bottom: 3rem;
+            animation: fadeInUp 0.8s ease 0.5s backwards;
+        }
+
+        .toggle-option {
+            padding: 0.8rem 2rem;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .toggle-option:hover {
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
+
+        .toggle-option.active {
+            background: var(--accent-primary);
+            border-color: var(--accent-primary);
+            color: var(--bg-primary);
+        }
+
+        .create-room-btn {
+            padding: 1rem 2.5rem;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 4px 20px var(--accent-glow);
+            animation: fadeInUp 0.8s ease 0.6s backwards;
+        }
+
+        .create-room-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 30px var(--accent-glow);
+        }
+
+        /* Rooms Grid */
+        .rooms-section {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .section-title {
+            font-family: 'Space Mono', monospace;
+            font-size: 2rem;
+            margin-bottom: 2rem;
+            color: var(--text-primary);
+        }
+
+        .rooms-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 2rem;
+            animation: fadeIn 0.8s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .room-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.5rem;
+            transition: var(--transition);
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .room-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary));
+            transform: scaleX(0);
+            transition: var(--transition);
+        }
+
+        .room-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-md);
+            border-color: var(--accent-primary);
+        }
+
+        .room-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .room-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+
+        .room-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .room-badge {
+            padding: 0.3rem 0.8rem;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .room-badge.public {
+            color: var(--accent-primary);
+        }
+
+        .room-badge.private {
+            background: var(--text-tertiary);
+            color: var(--accent-primary);
+        }
+
+        .room-description {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+
+        .room-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .room-participants {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .participant-count {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+        }
+
+        .join-btn {
+            padding: 0.5rem 1.2rem;
+            background: var(--accent-primary);
+            border: none;
+            border-radius: 8px;
+            color: var(--inside-box);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 0.9rem;
+        }
+
+        .join-btn:hover {
+            background: var(--accent-secondary);
+            transform: scale(1.05);
+        }
+
+        /* Room Chat Interface */
+        .chat-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            height: calc(100vh - 150px);
+            display: grid;
+            grid-template-columns: 1fr 300px;
+            gap: 2rem;
+        }
+
+        .chat-main {
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            padding: 1.5rem;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-room-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .leave-btn {
+            padding: 0.6rem 1.2rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: var(--transition);
+            font-weight: 500;
+        }
+
+        .leave-btn:hover {
+            border-color: var(--accent-secondary);
+            color: var(--accent-secondary);
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .message {
+            display: flex;
+            gap: 1rem;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .message.own {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            flex-shrink: 0;
+            color: var(--inside-box);
+        }
+
+        .message-content {
+            max-width: 70%;
+        }
+
+        .message-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .message-author {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .message-time {
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+        }
+
+        .message-text {
+            background: var(--bg-tertiary);
+            padding: 0.8rem 1rem;
+            border-radius: 12px;
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+
+        .message.own .message-text {
+            background: var(--accent-primary);
+            color: var(--inside-box);
+        }
+
+        .chat-input-container {
+            padding: 1.5rem;
+            background: var(--bg-tertiary);
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 1rem;
+        }
+
+        .chat-input {
+            flex: 1;
+            padding: 0.8rem 1.2rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-family: inherit;
+            transition: var(--transition);
+        }
+
+        .chat-input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+        }
+
+        .send-btn {
+            padding: 0.8rem 1.5rem;
+            background: var(--accent-primary);
+            border: none;
+            border-radius: 10px;
+            color: var(--inside-box);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .send-btn:hover {
+            background: var(--accent-secondary);
+        }
+
+        /* Participants Sidebar */
+        .participants-sidebar {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.5rem;
+            overflow-y: auto;
+        }
+
+        .participants-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .participant-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .participant-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.8rem;
+            background: var(--bg-tertiary);
+            border-radius: 10px;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .participant-item:hover {
+            background: var(--bg-primary);
+            transform: translateX(4px);
+        }
+
+        .participant-avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--inside-box);
+        }
+
+        .participant-info {
+            flex: 1;
+        }
+
+        .participant-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+
+        .participant-status {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        /* Profile Page */
+        .profile-container {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .profile-header {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 3rem;
+            margin-bottom: 2rem;
+            display: flex;
+            gap: 3rem;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .profile-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 150px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            opacity: 0.1;
+            z-index: 0;
+        }
+
+        .profile-avatar-large {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 3rem;
+            font-weight: 700;
+            border: 4px solid var(--bg-primary);
+            box-shadow: var(--shadow-lg);
+            position: relative;
+            z-index: 1;
+            color: var(--inside-box);
+        }
+
+        .profile-info {
+            flex: 1;
+            position: relative;
+            z-index: 1;
+        }
+
+        .profile-name {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: -0.2rem;
+        }
+
+        .profile-username {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+        }
+
+        .profile-stats {
+            display: flex;
+            gap: 2rem;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--accent-primary);
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+
+        .profile-blogs {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+        }
+
+        .blogs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        .blogs-title {
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        .create-blog-btn {
+            padding: 0.8rem 1.5rem;
+            background: var(--accent-primary);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--inside-box);
+        }
+
+        .create-blog-btn:hover {
+            background: var(--accent-secondary);
+            transform: translateY(-2px);
+            color: var(--inside-box);
+        }
+
+        .blog-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .blog-card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            transition: var(--transition);
+            cursor: pointer;
+        }
+
+        .blog-card:hover {
+            transform: translateX(8px);
+            border-color: var(--accent-primary);
+        }
+
+        .blog-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+
+        .blog-excerpt {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            line-height: 1.6;
+        }
+
+        .blog-meta {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            color: var(--text-tertiary);
+            font-size: 0.85rem;
+        }
+
+        .blog-actions {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .action-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.4rem 0.8rem;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            cursor: pointer;
+            transition: var(--transition);
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .action-btn:hover {
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+            max-width: 500px;
+            width: 90%;
+            animation: scaleIn 0.3s ease;
+        }
+
+        @keyframes scaleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .close-modal {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .close-modal:hover {
+            color: var(--accent-secondary);
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .form-submit {
+            width: 100%;
+            padding: 1rem;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            font-size: 1rem;
+            color: var(--inside-box);
+        }
+
+        .form-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 30px var(--accent-glow);
+        }
+
+        /* Loading State */
+        .loading {
+            text-align: center;
+            padding: 4rem;
+            color: var(--text-secondary);
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid var(--border-color);
+            border-top-color: var(--accent-primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 0 1rem;
+            }
+
+            .nav-links {
+                gap: 0.3rem;
+            }
+
+            .nav-link {
+                padding: 0.5rem 0.8rem;
+                font-size: 0.9rem;
+            }
+
+            .hero-title {
+                font-size: 2.5rem;
+            }
+
+            .auth-card {
+                padding: 2rem 1.5rem;
+            }
+
+            .form-group.row {
+                flex-direction: column;
+                gap: 1.5rem;
+            }
+
+            .chat-container {
+                grid-template-columns: 1fr;
+            }
+
+            .participants-sidebar {
+                display: none;
+            }
+
+            .profile-header {
+                flex-direction: column;
+                text-align: center;
+            }
+
+            .rooms-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .home-blogs-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .section-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .blog-search {
+                max-width: 100%;
+            }
+
+            .home-actions {
+                flex-direction: column;
+            }
+
+            .create-room-btn {
+                width: 100%;
+            }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 10px;
+            height: 10px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-tertiary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 5px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-primary);
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-left">
+            <a href="#" class="logo" onclick="navigateTo('home')">XR</a>
+            <ul class="nav-links" id="mainNavLinks">
+                <li><a href="#" class="nav-link active" data-page="home" onclick="navigateTo('home')">Home</a></li>
+                <li><a href="#" class="nav-link" data-page="rooms" onclick="navigateTo('rooms')">Rooms</a></li>
+                <li><a href="#" class="nav-link" data-page="profile" onclick="navigateTo('profile')">Profile</a></li>
+            </ul>
+        </div>
+        <button class="login-btn" id="authButton" onclick="showLoginPage()">
+            Login
+        </button>
+        <div class="theme-toggle" onclick="toggleTheme()">
+            <div class="theme-toggle-slider" id="themeSlider"></div>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container" id="mainContainer">
+        <!-- Login Page -->
+        <div id="loginPage" class="page" style="display: none;">
+            <div class="auth-container">
+                <div class="auth-card">
+                    <div class="auth-header">
+                        <div class="auth-logo">XR</div>
+                        <h2 class="auth-title">Welcome Back</h2>
+                        <p class="auth-subtitle">Sign in to continue your XR journey</p>
+                    </div>
+
+                    <form class="auth-form" onsubmit="handleLogin(event)">
+                        <div class="form-group">
+                            <label class="form-label" for="loginEmail">Email Address</label>
+                            <input type="email" id="loginEmail" class="form-input" placeholder="you@example.com" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="loginPassword">Password</label>
+                            <div class="password-input-wrapper">
+                                <input type="password" id="loginPassword" class="form-input" placeholder="Enter your password" required>
+                                <button type="button" class="toggle-password" onclick="togglePasswordVisibility('loginPassword', this)">
+                                    👁️
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-options">
+                            <div class="checkbox-wrapper">
+                                <input type="checkbox" id="rememberMe">
+                                <label for="rememberMe">Remember me</label>
+                            </div>
+                            <a href="#" class="forgot-password">Forgot password?</a>
+                        </div>
+
+                        <button type="submit" class="auth-submit">Sign In</button>
+                    </form>
+
+                    <div class="divider">
+                        <span class="divider-text">or continue with</span>
+                    </div>
+
+                    <div class="social-login">
+                        <button class="social-btn" onclick="socialLogin('google')">
+                            <span>G</span>
+                            <span>Google</span>
+                        </button>
+                        <button class="social-btn" onclick="socialLogin('github')">
+                            <span>⚡</span>
+                            <span>GitHub</span>
+                        </button>
+                    </div>
+
+                    <div class="auth-footer">
+                        Don't have an account? <a href="#" onclick="showRegisterPage()">Create New Account</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Register Page -->
+        <div id="registerPage" class="page" style="display: none;">
+            <div class="auth-container">
+                <div class="auth-card">
+                    <div class="auth-header">
+                        <div class="auth-logo">XR</div>
+                        <h2 class="auth-title">Create Your Account</h2>
+                        <p class="auth-subtitle">Join the XR community today</p>
+                    </div>
+
+                    <form class="auth-form" onsubmit="handleRegister(event)">
+                        <div class="form-group row">
+                            <div class="form-field">
+                                <label class="form-label" for="firstName">First Name</label>
+                                <input type="text" id="firstName" class="form-input" placeholder="Ahmed" required>
+                            </div>
+                            <div class="form-field">
+                                <label class="form-label" for="lastName">Last Name</label>
+                                <input type="text" id="lastName" class="form-input" placeholder="Shawky" required>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="registerUsername">Username</label>
+                            <input type="text" id="registerUsername" class="form-input" placeholder="@your_username" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="registerEmail">Email Address</label>
+                            <input type="email" id="registerEmail" class="form-input" placeholder="you@example.com" required>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="registerPassword">Password</label>
+                            <div class="password-input-wrapper">
+                                <input type="password" id="registerPassword" class="form-input" placeholder="Create a strong password" required>
+                                <button type="button" class="toggle-password" onclick="togglePasswordVisibility('registerPassword', this)">
+                                    👁️
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="confirmPassword">Confirm Password</label>
+                            <div class="password-input-wrapper">
+                                <input type="password" id="confirmPassword" class="form-input" placeholder="Confirm your password" required>
+                                <button type="button" class="toggle-password" onclick="togglePasswordVisibility('confirmPassword', this)">
+                                    👁️
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-options">
+                            <div class="checkbox-wrapper">
+                                <input type="checkbox" id="agreeTerms" required>
+                                <label for="agreeTerms">I agree to Terms & Conditions</label>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="auth-submit">Create Account</button>
+                    </form>
+
+                    <div class="divider">
+                        <span class="divider-text">or sign up with</span>
+                    </div>
+
+                    <div class="social-login">
+                        <button class="social-btn" onclick="socialLogin('google')">
+                            <span>G</span>
+                            <span>Google</span>
+                        </button>
+                        <button class="social-btn" onclick="socialLogin('github')">
+                            <span>⚡</span>
+                            <span>GitHub</span>
+                        </button>
+                    </div>
+
+                    <div class="auth-footer">
+                        Already have an account? <a href="#" onclick="showLoginPage()">Sign In</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Home Page (Default) -->
+        <div id="homePage" class="page active">
+            <div class="home-hero">
+                <h1 class="hero-title">Welcome to XR Community</h1>
+                <p class="hero-subtitle">Connect, Create, and Collaborate in Virtual Reality</p>
+                
+                <div class="home-actions">
+                    <button class="create-room-btn" onclick="openCreateRoomModal()">
+                          <div style="color: var(--inside-box)"> + Create New Room </div>
+                    </button>
+                    <button class="create-room-btn" onclick="openCreateBlogModal()" style="background: linear-gradient(135deg, var(--accent-secondary), var(--accent-primary));">
+                        <div style="color: var(--inside-box)"> + Write a Blog </div> 
+                    </button>
+                </div>
+            </div>
+
+            <div class="home-blogs-section">
+                <div class="section-header">
+                    <h2 class="section-title">Latest Blogs from Community</h2>
+                    <div class="blog-search">
+                        <input type="text" class="search-input" placeholder="Search blogs..." id="blogSearch" onkeyup="searchBlogs()">
+                    </div>
+                </div>
+                <div class="home-blogs-grid" id="homeBlogsGrid">
+                    <!-- Blogs will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Rooms Page -->
+        <div id="roomsPage" class="page" style="display: none;">
+            <div class="rooms-section">
+                <h2 class="section-title">Available Rooms</h2>
+                <div class="rooms-grid" id="roomsGrid">
+                    <!-- Rooms will be loaded here dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Room Chat Page -->
+        <div id="chatPage" class="page" style="display: none;">
+            <div class="chat-container">
+                <div class="chat-main">
+                    <div class="chat-header">
+                        <h2 class="chat-room-title" id="chatRoomTitle">Room Name</h2>
+                        <button class="leave-btn" onclick="leaveRoom()">← Leave Room</button>
+                    </div>
+                    <div class="chat-messages" id="chatMessages">
+                        <!-- Messages will be loaded here -->
+                    </div>
+                    <div class="chat-input-container">
+                        <input type="text" class="chat-input" placeholder="Type a message..." id="messageInput" onkeypress="handleMessageKeyPress(event)">
+                        <button class="send-btn" onclick="sendMessage()">Send</button>
+                    </div>
+                </div>
+                <div class="participants-sidebar">
+                    <h3 class="participants-title">
+                        <span>👥</span>
+                        <span>Participants (<span id="participantCount">0</span>)</span>
+                    </h3>
+                    <div class="participant-list" id="participantList">
+                        <!-- Participants will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Profile Page -->
+        <div id="profilePage" class="page" style="display: none;">
+            <div class="profile-container">
+                <div class="profile-header">
+                    <div class="profile-avatar-large" id="profileAvatar">U</div>
+                    <div class="profile-info">
+                        <h1 class="profile-name" id="profileName">User Name</h1>
+                        <p class="profile-username" id="profileUsername">@username</p>
+                        <div class="profile-stats">
+                            <div class="stat-item">
+                                <div class="stat-value" id="roomsCreated">0</div>
+                                <div class="stat-label">Rooms Created</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="blogsPublished">0</div>
+                                <div class="stat-label">Blogs Published</div>
+                            </div>
+                            <div class="stat-item">
+                                <div class="stat-value" id="totalConnections">0</div>
+                                <div class="stat-label">Connections</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="profile-blogs">
+                    <div class="blogs-header">
+                        <h2 class="blogs-title">My Blogs</h2>
+                        <button class="create-blog-btn" onclick="openCreateBlogModal()">+ New Blog</button>
+                    </div>
+                    <div class="blog-list" id="blogList">
+                        <!-- Blogs will be loaded here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Room Modal -->
+    <div class="modal" id="createRoomModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Create New Room</h2>
+                <button class="close-modal" onclick="closeModal('createRoomModal')">×</button>
+            </div>
+            <form onsubmit="createRoom(event)">
+                <div class="form-group">
+                    <label class="form-label">Room Name</label>
+                    <input type="text" class="form-input" id="roomName" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-input form-textarea" id="roomDescription" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Room Type</label>
+                    <div class="room-type-toggle">
+                        <div class="toggle-option active" data-type="public" onclick="selectRoomType('public')">Public</div>
+                        <div class="toggle-option" data-type="private" onclick="selectRoomType('private')">Private 🔒</div>
+                    </div>
+                    <input type="hidden" id="roomType" value="public">
+                </div>
+                <button type="submit" class="form-submit">Create Room</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Create Blog Modal -->
+    <div class="modal" id="createBlogModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title">Create New Blog</h2>
+                <button class="close-modal" onclick="closeModal('createBlogModal')">×</button>
+            </div>
+            <form onsubmit="createBlog(event)">
+                <div class="form-group">
+                    <label class="form-label">Blog Title</label>
+                    <input type="text" class="form-input" id="blogTitle" required>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Content</label>
+                    <textarea class="form-input form-textarea" id="blogContent" rows="8" required></textarea>
+                </div>
+                <button type="submit" class="form-submit">Publish Blog</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Configuration
+        const API_BASE_URL = 'http://localhost:1234/'; // Replace with your backend URL
+        let socket = null;
+        let currentUser = null;
+        let isAuthenticated = false;
+        let currentRoom = null;
+        let selectedRoomType = 'public';
+
+        // Check authentication status on load
+        function checkAuth() {
+            const token = localStorage.getItem('authToken');
+            const userData = localStorage.getItem('userData');
+            
+            if (token && userData) {
+                isAuthenticated = true;
+                currentUser = JSON.parse(userData);
+                updateAuthUI();
+            } else {
+                isAuthenticated = false;
+                currentUser = null;
+            }
+        }
+
+        // Update UI based on authentication status
+        function updateAuthUI() {
+            const authButton = document.getElementById('authButton');
+            
+            if (isAuthenticated && currentUser) {
+                authButton.textContent = 'Logout';
+                authButton.onclick = logout;
+            } else {
+                authButton.textContent = 'Login';
+                authButton.onclick = showLoginPage;
+            }
+        }
+
+        // Authentication Functions
+        function showLoginPage() {
+            document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+            document.getElementById('loginPage').style.display = 'block';
+            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+        }
+
+        function showRegisterPage() {
+            document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+            document.getElementById('registerPage').style.display = 'block';
+            document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+        }
+
+        function togglePasswordVisibility(inputId, button) {
+            const input = document.getElementById(inputId);
+            if (input.type === 'password') {
+                input.type = 'text';
+                button.textContent = '🙈';
+            } else {
+                input.type = 'password';
+                button.textContent = '👁️';
+            }
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            const rememberMe = document.getElementById('rememberMe').checked;
+
+            // In production, this would call your actual API
+            // For demo purposes, we'll simulate a successful login
+            const mockUser = {
+                id: '1',
+                firstName: 'Ahmed',
+                lastName: 'Shawky',
+                username: 'Shawky_XR',
+                email: email,
+                avatar: 'AS'
+            };
+
+            // Store auth data
+            localStorage.setItem('authToken', 'mock-jwt-token-' + Date.now());
+            localStorage.setItem('userData', JSON.stringify(mockUser));
+            
+            currentUser = mockUser;
+            isAuthenticated = true;
+            
+            updateAuthUI();
+            navigateTo('home');
+            
+            // Reset form
+            event.target.reset();
+        }
+
+        async function handleRegister(event) {
+            event.preventDefault();
+            
+            const firstName = document.getElementById('firstName').value;
+            const lastName = document.getElementById('lastName').value;
+            const username = document.getElementById('registerUsername').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            // Validate passwords match
+            if (password !== confirmPassword) {
+                alert('Passwords do not match!');
+                return;
+            }
+
+            // In production, this would call your actual API
+            const mockUser = {
+                id: Date.now().toString(),
+                firstName: firstName,
+                lastName: lastName,
+                username: username,
+                email: email,
+                avatar: firstName[0] + lastName[0]
+            };
+
+            // Store auth data
+            localStorage.setItem('authToken', 'mock-jwt-token-' + Date.now());
+            localStorage.setItem('userData', JSON.stringify(mockUser));
+            
+            currentUser = mockUser;
+            isAuthenticated = true;
+            
+            updateAuthUI();
+            navigateTo('home');
+            
+            // Reset form
+            event.target.reset();
+        }
+
+        function socialLogin(provider) {
+            alert(`${provider} login would be implemented here. This would redirect to ${provider}'s OAuth flow.`);
+        }
+
+        function logout() {
+            localStorage.removeItem('authToken');
+            localStorage.removeItem('userData');
+            currentUser = null;
+            isAuthenticated = false;
+            updateAuthUI();
+            showLoginPage();
+        }
+
+        // Theme Management
+        function toggleTheme() {
+            const html = document.documentElement;
+            const slider = document.getElementById('themeSlider');
+            const currentTheme = html.getAttribute('data-theme');
+            
+            if (currentTheme === 'light') {
+                html.removeAttribute('data-theme');
+                slider.classList.remove('light');
+                localStorage.setItem('theme', 'dark');
+            } else {
+                html.setAttribute('data-theme', 'light');
+                slider.classList.add('light');
+                localStorage.setItem('theme', 'light');
+            }
+        }
+
+        // Load saved theme
+        function loadTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'light') {
+                document.documentElement.setAttribute('data-theme', 'light');
+                document.getElementById('themeSlider').classList.add('light');
+            }
+        }
+
+        // Navigation
+        function navigateTo(page) {
+            // Update nav links
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('data-page') === page) {
+                    link.classList.add('active');
+                }
+            });
+
+            // Hide all pages
+            document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+
+            // Show selected page
+            if (page === 'home') {
+                document.getElementById('homePage').style.display = 'block';
+                loadHomeBlogs();
+            } else if (page === 'rooms') {
+                document.getElementById('roomsPage').style.display = 'block';
+                loadRooms();
+            } else if (page === 'profile') {
+                if (!isAuthenticated) {
+                    showLoginPage();
+                    return;
+                }
+                document.getElementById('profilePage').style.display = 'block';
+                loadProfile();
+            }
+        }
+
+        // REST API Functions
+        async function apiRequest(endpoint, method = 'GET', data = null) {
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+                }
+            };
+
+            if (data) {
+                options.body = JSON.stringify(data);
+            }
+
+            try {
+                const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return await response.json();
+            } catch (error) {
+                console.error('API Error:', error);
+                // Return mock data for demonstration
+                return getMockData(endpoint, method);
+            }
+        }
+
+        // Mock Data (for demonstration without backend)
+        function getMockData(endpoint, method) {
+            if (endpoint.includes('/rooms') && method === 'GET') {
+                return [
+                    {
+                        id: '1',
+                        name: 'Backend Development Hub',
+                        description: 'Discuss backend architecture, APIs, databases, and best practices.',
+                        type: 'public',
+                        participants: 12
+                    },
+                    {
+                        id: '2',
+                        name: 'Team Collaboration Space',
+                        description: 'Private room for team discussions and project planning.',
+                        type: 'private',
+                        participants: 5
+                    },
+                    {
+                        id: '3',
+                        name: 'AI & Machine Learning',
+                        description: 'Discussing the latest in AI technology, models, and applications.',
+                        type: 'public',
+                        participants: 28
+                    },
+                    {
+                        id: '4',
+                        name: 'Gaming Community',
+                        description: 'Connect with fellow gamers and discuss your favorite games.',
+                        type: 'public',
+                        participants: 45
+                    },
+                    {
+                        id: '5',
+                        name: 'Web3 & Blockchain',
+                        description: 'Explore decentralized technologies and crypto innovations.',
+                        type: 'public',
+                        participants: 19
+                    },
+                    {
+                        id: '6',
+                        name: 'Design & UX',
+                        description: 'Share design inspiration and discuss user experience.',
+                        type: 'public',
+                        participants: 23
+                    }
+                ];
+            } else if (endpoint.includes('/blogs') && method === 'GET') {
+                return [
+                    {
+                        id: '1',
+                        title: 'Getting Started with RESTful APIs',
+                        content: 'In this comprehensive guide, I will walk you through everything you need to know about building RESTful APIs. We\'ll cover HTTP methods, status codes, authentication, and best practices for API design. Whether you\'re a beginner or looking to refine your skills, this guide has something for everyone.',
+                        excerpt: 'A comprehensive guide to understanding and building RESTful APIs from scratch. Learn about HTTP methods, authentication, and best practices.',
+                        author: {
+                            id: 'user_201',
+                            firstName: 'Sarah',
+                            lastName: 'Johnson',
+                            username: 'sarahj'
+                        },
+                        likes: 124,
+                        comments: 23,
+                        date: 'Feb 1, 2026'
+                    },
+                    {
+                        id: '2',
+                        title: 'The Future of XR Technology',
+                        content: 'Extended Reality (XR) is transforming how we interact with digital content. This post explores the latest developments in VR, AR, and MR technologies, and what the future holds for immersive experiences.',
+                        excerpt: 'Exploring the cutting-edge developments in Virtual Reality, Augmented Reality, and Mixed Reality technologies.',
+                        author: {
+                            id: 'user_202',
+                            firstName: 'Michael',
+                            lastName: 'Chen',
+                            username: 'mchen'
+                        },
+                        likes: 89,
+                        comments: 15,
+                        date: 'Jan 31, 2026'
+                    },
+                    {
+                        id: '3',
+                        title: 'Building Scalable Backend Systems',
+                        content: 'Scalability is crucial for modern applications. In this post, I share my experience building systems that can handle millions of users, discussing microservices, load balancing, caching strategies, and database optimization.',
+                        excerpt: 'Learn how to design and implement backend systems that scale from hundreds to millions of users.',
+                        author: {
+                            id: 'user_203',
+                            firstName: 'Emily',
+                            lastName: 'Rodriguez',
+                            username: 'emilyrod'
+                        },
+                        likes: 156,
+                        comments: 31,
+                        date: 'Jan 30, 2026'
+                    },
+                    {
+                        id: '4',
+                        title: 'WebSocket vs REST: When to Use What',
+                        content: 'Choosing between WebSocket and REST can be confusing. This article breaks down the differences, use cases, and provides practical examples of when to use each technology in your applications.',
+                        excerpt: 'A detailed comparison of WebSocket and REST APIs with real-world use cases and implementation tips.',
+                        author: {
+                            id: 'user_204',
+                            firstName: 'David',
+                            lastName: 'Park',
+                            username: 'davidp'
+                        },
+                        likes: 203,
+                        comments: 42,
+                        date: 'Jan 29, 2026'
+                    },
+                    {
+                        id: '5',
+                        title: 'Database Design Best Practices',
+                        content: 'A well-designed database is the foundation of any great application. This guide covers normalization, indexing, relationships, and performance optimization techniques that every developer should know.',
+                        excerpt: 'Master the fundamentals of database design including normalization, indexing, and optimization strategies.',
+                        author: {
+                            id: 'user_205',
+                            firstName: 'Lisa',
+                            lastName: 'Anderson',
+                            username: 'lisaa'
+                        },
+                        likes: 178,
+                        comments: 28,
+                        date: 'Jan 28, 2026'
+                    },
+                    {
+                        id: '6',
+                        title: 'Introduction to Socket.IO',
+                        content: 'Socket.IO makes real-time communication easy. In this tutorial, we\'ll build a real-time chat application from scratch, covering connection handling, rooms, namespaces, and error handling.',
+                        excerpt: 'Build real-time applications with Socket.IO. Step-by-step tutorial for creating a chat app.',
+                        author: {
+                            id: 'user_206',
+                            firstName: 'James',
+                            lastName: 'Wilson',
+                            username: 'jameswil'
+                        },
+                        likes: 145,
+                        comments: 19,
+                        date: 'Jan 27, 2026'
+                    }
+                ];
+            } else if (endpoint.includes('/profile') && method === 'GET') {
+                return {
+                    firstName: currentUser?.firstName || 'Ahmed',
+                    lastName: currentUser?.lastName || 'Shawky',
+                    username: currentUser?.username || 'ShawkyXR',
+                    roomsCreated: 3,
+                    blogsPublished: 12,
+                    totalConnections: 156
+                };
+            }
+            return {};
+        }
+
+        // Load Blogs on Home Page
+        async function loadHomeBlogs() {
+            const blogsGrid = document.getElementById('homeBlogsGrid');
+            blogsGrid.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading blogs...</p></div>';
+
+            const blogs = await apiRequest('/blogs');
+            
+            blogsGrid.innerHTML = '';
+            if (blogs.length === 0) {
+                blogsGrid.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 3rem;">No blogs found. Be the first to write one!</p>';
+                return;
+            }
+
+            blogs.forEach(blog => {
+                const blogCard = document.createElement('div');
+                blogCard.className = 'home-blog-card';
+                const authorInitials = `${blog.author.firstName[0]}${blog.author.lastName[0]}`;
+                
+                blogCard.innerHTML = `
+                    <div class="home-blog-header">
+                        <div class="blog-author-avatar ">${authorInitials}</div>
+                        <div class="blog-author-info">
+                            <div class="blog-author-name">${blog.author.firstName} ${blog.author.lastName}</div>
+                            <div class="blog-date">${blog.date}</div>
+                        </div>
+                    </div>
+                    <div class="home-blog-content">
+                        <h3 class="home-blog-title">${blog.title}</h3>
+                        <p class="home-blog-excerpt">${blog.excerpt}</p>
+                    </div>
+                    <div class="home-blog-footer">
+                        <div class="blog-stats">
+                            <button class="stat-btn" onclick="likeBlog('${blog.id}')">
+                                <span>👍</span>
+                                <span>${blog.likes}</span>
+                            </button>
+                            <button class="stat-btn">
+                                <span>💬</span>
+                                <span>${blog.comments}</span>
+                            </button>
+                        </div>
+                        <button class="read-more-btn" onclick="viewBlog('${blog.id}')">Read More</button>
+                    </div>
+                `;
+                blogsGrid.appendChild(blogCard);
+            });
+        }
+
+        // Search Blogs
+        let blogSearchTimeout;
+        function searchBlogs() {
+            clearTimeout(blogSearchTimeout);
+            blogSearchTimeout = setTimeout(() => {
+                const searchTerm = document.getElementById('blogSearch').value.toLowerCase();
+                const blogCards = document.querySelectorAll('.home-blog-card');
+                
+                blogCards.forEach(card => {
+                    const title = card.querySelector('.home-blog-title').textContent.toLowerCase();
+                    const excerpt = card.querySelector('.home-blog-excerpt').textContent.toLowerCase();
+                    const author = card.querySelector('.blog-author-name').textContent.toLowerCase();
+                    
+                    if (title.includes(searchTerm) || excerpt.includes(searchTerm) || author.includes(searchTerm)) {
+                        card.style.display = 'flex';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+            }, 300);
+        }
+
+        // Like Blog
+        async function likeBlog(blogId) {
+            await apiRequest(`/blogs/${blogId}/like`, 'POST');
+            // Reload blogs to show updated like count
+            if (document.getElementById('homePage').style.display !== 'none') {
+                loadHomeBlogs();
+            } else {
+                loadBlogs();
+            }
+        }
+
+        // View Blog Detail (placeholder - can expand this)
+        function viewBlog(blogId) {
+            alert(`View blog ${blogId} - This would open a detailed view in a real implementation`);
+            // In production, you would navigate to a blog detail page or open a modal
+        }
+
+        // Load Rooms
+        async function loadRooms() {
+            const roomsGrid = document.getElementById('roomsGrid');
+            roomsGrid.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading rooms...</p></div>';
+
+            const rooms = await apiRequest('/rooms');
+            
+            roomsGrid.innerHTML = '';
+            rooms.forEach(room => {
+                const roomCard = document.createElement('div');
+                roomCard.className = 'room-card';
+                roomCard.innerHTML = `
+                    <div class="room-header">
+                        <div>
+                            <h3 class="room-title">${room.name}</h3>
+                            <span class="room-badge ${room.type}">${room.type}</span>
+                        </div>
+                    </div>
+                    <p class="room-description">${room.description}</p>
+                    <div class="room-meta">
+                        <div class="room-participants">
+                            <span class="participant-count">👥 ${room.participants} online</span>
+                        </div>
+                        <button class="join-btn" onclick="joinRoom('${room.id}', '${room.name}')">Join</button>
+                    </div>
+                `;
+                roomsGrid.appendChild(roomCard);
+            });
+        }
+
+        // Modal Management
+        function openCreateRoomModal() {
+            if (!isAuthenticated) {
+                showLoginPage();
+                return;
+            }
+            document.getElementById('createRoomModal').classList.add('active');
+        }
+
+        function openCreateBlogModal() {
+            if (!isAuthenticated) {
+                showLoginPage();
+                return;
+            }
+            document.getElementById('createBlogModal').classList.add('active');
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+
+        function selectRoomType(type) {
+            selectedRoomType = type;
+            document.getElementById('roomType').value = type;
+            document.querySelectorAll('#createRoomModal .toggle-option').forEach(opt => {
+                opt.classList.remove('active');
+                if (opt.getAttribute('data-type') === type) {
+                    opt.classList.add('active');
+                }
+            });
+        }
+
+        // Create Room
+        async function createRoom(event) {
+            event.preventDefault();
+            const roomData = {
+                name: document.getElementById('roomName').value,
+                description: document.getElementById('roomDescription').value,
+                type: document.getElementById('roomType').value
+            };
+
+            await apiRequest('/rooms', 'POST', roomData);
+            closeModal('createRoomModal');
+            loadRooms();
+            
+            // Reset form
+            event.target.reset();
+        }
+
+        // Join Room (Socket.IO connection)
+        function joinRoom(roomId, roomName) {
+            if (!isAuthenticated) {
+                showLoginPage();
+                return;
+            }
+
+            currentRoom = { id: roomId, name: roomName };
+            
+            // Hide other pages, show chat
+            document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+            document.getElementById('chatPage').style.display = 'block';
+            document.getElementById('chatRoomTitle').textContent = roomName;
+
+            // Initialize Socket.IO connection
+            if (!socket) {
+                socket = io('ws://localhost:3000'); // Replace with your WebSocket URL
+                
+                socket.on('connect', () => {
+                    console.log('Connected to chat server');
+                    socket.emit('join-room', { roomId, userId: currentUser.id });
+                });
+
+                socket.on('message', (message) => {
+                    displayMessage(message);
+                });
+
+                socket.on('user-joined', (data) => {
+                    updateParticipants(data.participants);
+                });
+
+                socket.on('user-left', (data) => {
+                    updateParticipants(data.participants);
+                });
+            } else {
+                socket.emit('join-room', { roomId, userId: currentUser.id });
+            }
+
+            // Load mock messages for demo
+            loadMockMessages();
+        }
+
+        // Leave Room
+        function leaveRoom() {
+            if (socket && currentRoom) {
+                socket.emit('leave-room', { roomId: currentRoom.id, userId: currentUser.id });
+            }
+            currentRoom = null;
+            navigateTo('rooms');
+        }
+
+        // Send Message (Socket.IO)
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (message && socket && currentRoom && currentUser) {
+                const messageData = {
+                    roomId: currentRoom.id,
+                    userId: currentUser.id,
+                    author: `${currentUser.firstName} ${currentUser.lastName}`,
+                    text: message,
+                    timestamp: new Date().toISOString()
+                };
+                
+                socket.emit('send-message', messageData);
+                input.value = '';
+            }
+        }
+
+        function handleMessageKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        // Display Message
+        function displayMessage(message) {
+            const messagesContainer = document.getElementById('chatMessages');
+            const isOwn = message.userId === currentUser.id;
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isOwn ? 'own' : ''}`;
+            messageDiv.innerHTML = `
+                <div class="message-avatar">${message.author.split(' ').map(n => n[0]).join('')}</div>
+                <div class="message-content">
+                    <div class="message-header">
+                        <span class="message-author">${message.author}</span>
+                        <span class="message-time">${new Date(message.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                    <div class="message-text">${message.text}</div>
+                </div>
+            `;
+            
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        // Load Mock Messages (for demo)
+        function loadMockMessages() {
+            const messages = [
+                { userId: '2', author: 'Alice Smith', text: 'Hey everyone! Welcome to the room!', timestamp: new Date(Date.now() - 300000) },
+                { userId: '3', author: 'Bob Johnson', text: 'Thanks! Excited to be here.', timestamp: new Date(Date.now() - 240000) },
+                { userId: currentUser.id, author: `${currentUser.firstName} ${currentUser.lastName}`, text: 'Hello! Great to connect with you all.', timestamp: new Date(Date.now() - 180000) }
+            ];
+
+            const messagesContainer = document.getElementById('chatMessages');
+            messagesContainer.innerHTML = '';
+            messages.forEach(msg => displayMessage(msg));
+
+            // Mock participants
+            updateParticipants([
+                { id: currentUser.id, name: `${currentUser.firstName} ${currentUser.lastName}`, status: 'online' },
+                { id: '2', name: 'Alice Smith', status: 'online' },
+                { id: '3', name: 'Bob Johnson', status: 'online' }
+            ]);
+        }
+
+        // Update Participants
+        function updateParticipants(participants) {
+            const participantList = document.getElementById('participantList');
+            const participantCount = document.getElementById('participantCount');
+            
+            participantCount.textContent = participants.length;
+            participantList.innerHTML = '';
+            
+            participants.forEach(participant => {
+                const participantDiv = document.createElement('div');
+                participantDiv.className = 'participant-item';
+                participantDiv.innerHTML = `
+                    <div class="participant-avatar">${participant.name.split(' ').map(n => n[0]).join('')}</div>
+                    <div class="participant-info">
+                        <div class="participant-name">${participant.name}</div>
+                        <div class="participant-status">🟢 ${participant.status}</div>
+                    </div>
+                `;
+                participantList.appendChild(participantDiv);
+            });
+        }
+
+        // Load Profile
+        async function loadProfile() {
+            const profile = await apiRequest('/profile');
+            
+            document.getElementById('profileName').textContent = `${profile.firstName} ${profile.lastName}`;
+            document.getElementById('profileUsername').textContent = `@${profile.username}`;
+            document.getElementById('profileAvatar').textContent = `${profile.firstName[0]}${profile.lastName[0]}`;
+            document.getElementById('roomsCreated').textContent = profile.roomsCreated;
+            document.getElementById('blogsPublished').textContent = profile.blogsPublished;
+            document.getElementById('totalConnections').textContent = profile.totalConnections;
+
+            loadBlogs();
+        }
+
+        // Load Blogs
+        async function loadBlogs() {
+            const blogs = await apiRequest('/blogs');
+            const blogList = document.getElementById('blogList');
+            
+            blogList.innerHTML = '';
+            blogs.forEach(blog => {
+                const blogCard = document.createElement('div');
+                blogCard.className = 'blog-card';
+                blogCard.innerHTML = `
+                    <h3 class="blog-title">${blog.title}</h3>
+                    <p class="blog-excerpt">${blog.excerpt}</p>
+                    <div class="blog-meta">
+                        <span>${blog.date}</span>
+                        <div class="blog-actions">
+                            <button class="action-btn">
+                                <span>👍</span>
+                                <span>${blog.likes}</span>
+                            </button>
+                            <button class="action-btn">
+                                <span>💬</span>
+                                <span>${blog.comments}</span>
+                            </button>
+                        </div>
+                    </div>
+                `;
+                blogList.appendChild(blogCard);
+            });
+        }
+
+        // Create Blog
+        async function createBlog(event) {
+            event.preventDefault();
+            const blogData = {
+                title: document.getElementById('blogTitle').value,
+                content: document.getElementById('blogContent').value
+            };
+
+            await apiRequest('/blogs', 'POST', blogData);
+            closeModal('createBlogModal');
+            loadBlogs();
+            
+            // Reset form
+            event.target.reset();
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTheme();
+            checkAuth();
+            loadHomeBlogs();
+        });
+
+        // Close modals when clicking outside
+        document.querySelectorAll('.modal').forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                }
+            });
+        });
+    </script>
+
+    <!-- Socket.IO Client (Replace with your actual Socket.IO server) -->
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+</body>
+</html>
