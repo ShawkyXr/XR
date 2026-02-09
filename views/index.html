@@ -33,7 +33,7 @@
             --text-tertiary: #8a8a8a;
             --inside-box: #f2f1f1;
             --accent-primary: #000000;
-            --accent-secondary: #181818;
+            --accent-secondary: #222222;
             --accent-glow: rgba(42, 42, 42, 0.2);
             --border-color: #d0d0d0;
             --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
@@ -94,6 +94,10 @@
 
         .login-btn:hover{
             color: var(--accent-primary);
+        }
+
+        #profileNavItem {
+            display: none; 
         }
 
         .logo {
@@ -652,6 +656,35 @@
             transition: var(--transition);
             border-radius: 6px;
             font-size: 0.9rem;
+        }
+
+        .auth-popup {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: var(--bg-secondary);
+            border: 2px solid var(--accent-primary);
+            color: var(--text-primary);
+            padding: 1rem 2rem;
+            border-radius: 12px;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            z-index: 9999;
+            animation: slideInRight 0.4s ease forwards;
+        }
+
+        @keyframes slideInRight {
+            from { transform: translateX(120%); }
+            to { transform: translateX(0); }
+        }
+
+        .auth-popup .login-link {
+            color: var(--accent-primary);
+            text-decoration: underline;
+            cursor: pointer;
+            font-weight: 700;
         }
 
         .stat-btn:hover {
@@ -1514,7 +1547,7 @@
             <ul class="nav-links" id="mainNavLinks">
                 <li><a href="#" class="nav-link active" data-page="home" onclick="navigateTo('home')">Home</a></li>
                 <li><a href="#" class="nav-link" data-page="rooms" onclick="navigateTo('rooms')">Rooms</a></li>
-                <li><a href="#" class="nav-link" data-page="profile" onclick="navigateTo('profile')">Profile</a></li>
+                <li id="profileNavItem"><a href="#" class="nav-link" data-page="profile" onclick="navigateTo('profile')">Profile</a></li>
             </ul>
         </div>
         <button class="login-btn" id="authButton" onclick="showLoginPage()">
@@ -1581,6 +1614,26 @@
 
                     <div class="auth-footer">
                         Don't have an account? <a href="#" onclick="showRegisterPage()">Create New Account</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="blogViewPage" class="page" style="display: none;">
+            <div class="profile-container">
+                <button class="leave-btn" onclick="navigateTo('home')" style="margin-bottom: 1rem;">← Back</button>
+                <div id="fullBlogContent">
+                    </div>
+                
+                <div class="profile-blogs" style="margin-top: 2rem;">
+                    <h3 class="blogs-title">Comments</h3>
+                    <div id="commentsList" class="blog-list" style="margin-bottom: 2rem;">
+                        </div>
+                    
+                    <div class="form-group">
+                        <label class="form-label">Leave a comment</label>
+                        <textarea id="commentInput" class="form-input" placeholder="What are your thoughts?"></textarea>
+                        <button class="auth-submit" style="margin-top: 1rem; width: auto;" onclick="submitComment()">Post Comment</button>
                     </div>
                 </div>
             </div>
@@ -1826,14 +1879,9 @@
     </div>
 
     <script>
-        // Configuration
-        const API_BASE_URL = 'http://localhost:1234/'; // Replace with your backend URL
-        let socket = null;
-        let currentUser = null;
-        let isAuthenticated = false;
-        let currentRoom = null;
-        let selectedRoomType = 'public';
-
+        const API_BASE_URL = 'http://localhost:1234/api';
+        
+        let activeBlogId = null;
         // Check authentication status on load
         function checkAuth() {
             const token = localStorage.getItem('authToken');
@@ -1842,23 +1890,26 @@
             if (token && userData) {
                 isAuthenticated = true;
                 currentUser = JSON.parse(userData);
-                updateAuthUI();
             } else {
                 isAuthenticated = false;
                 currentUser = null;
             }
+            updateAuthUI();
         }
 
         // Update UI based on authentication status
         function updateAuthUI() {
             const authButton = document.getElementById('authButton');
+            const profileNavItem = document.getElementById('profileNavItem');
             
             if (isAuthenticated && currentUser) {
                 authButton.textContent = 'Logout';
                 authButton.onclick = logout;
+                profileNavItem.style.display = 'block'; // Show Profile link
             } else {
                 authButton.textContent = 'Login';
                 authButton.onclick = showLoginPage;
+                profileNavItem.style.display = 'none'; // Hide Profile link
             }
         }
 
@@ -1888,74 +1939,90 @@
 
         async function handleLogin(event) {
             event.preventDefault();
-            
+    
             const email = document.getElementById('loginEmail').value;
             const password = document.getElementById('loginPassword').value;
-            const rememberMe = document.getElementById('rememberMe').checked;
 
-            // In production, this would call your actual API
-            // For demo purposes, we'll simulate a successful login
-            const mockUser = {
-                id: '1',
-                firstName: 'Ahmed',
-                lastName: 'Shawky',
-                username: 'Shawky_XR',
-                email: email,
-                avatar: 'AS'
-            };
+            try {
+                // Connect to your specific route: POST /api/profile/login
+                const response = await fetch(`${API_BASE_URL}/profile/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
 
-            // Store auth data
-            localStorage.setItem('authToken', 'mock-jwt-token-' + Date.now());
-            localStorage.setItem('userData', JSON.stringify(mockUser));
-            
-            currentUser = mockUser;
-            isAuthenticated = true;
-            
-            updateAuthUI();
-            navigateTo('home');
-            
-            // Reset form
-            event.target.reset();
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Login failed');
+                }
+
+                // Assuming your backend returns { token: "...", user: {...} }
+                localStorage.setItem('authToken', data.token);
+                localStorage.setItem('userData', JSON.stringify(data.user)); // or fetch profile separately
+
+                currentUser = data.user;
+                isAuthenticated = true;
+                
+                updateAuthUI();
+                navigateTo('home');
+                event.target.reset();
+
+            } catch (error) {
+                alert(error.message);
+                console.error('Login Error:', error);
+            }
+    
         }
 
         async function handleRegister(event) {
             event.preventDefault();
-            
+
+            // Gather data from form
             const firstName = document.getElementById('firstName').value;
             const lastName = document.getElementById('lastName').value;
             const username = document.getElementById('registerUsername').value;
             const email = document.getElementById('registerEmail').value;
             const password = document.getElementById('registerPassword').value;
-            const confirmPassword = document.getElementById('confirmPassword').value;
 
-            // Validate passwords match
-            if (password !== confirmPassword) {
-                alert('Passwords do not match!');
-                return;
+            try {
+                // Connect to your specific route: POST /api/profile/register
+                const response = await fetch(`${API_BASE_URL}/profile/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        firstName, 
+                        lastName, 
+                        username, 
+                        email, 
+                        password 
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.message || 'Registration failed');
+                }
+
+                // Auto-login after register (if your backend sends token on register)
+                if (data.token) {
+                    localStorage.setItem('authToken', data.token);
+                    localStorage.setItem('userData', JSON.stringify(data.user));
+                    currentUser = data.user;
+                    isAuthenticated = true;
+                    updateAuthUI();
+                    navigateTo('home');
+                } else {
+                    // If backend doesn't auto-login, send them to login page
+                    alert("Account created! Please log in.");
+                    showLoginPage();
+                }
+                event.target.reset();
+
+            } catch (error) {
+                alert(error.message);
             }
-
-            // In production, this would call your actual API
-            const mockUser = {
-                id: Date.now().toString(),
-                firstName: firstName,
-                lastName: lastName,
-                username: username,
-                email: email,
-                avatar: firstName[0] + lastName[0]
-            };
-
-            // Store auth data
-            localStorage.setItem('authToken', 'mock-jwt-token-' + Date.now());
-            localStorage.setItem('userData', JSON.stringify(mockUser));
-            
-            currentUser = mockUser;
-            isAuthenticated = true;
-            
-            updateAuthUI();
-            navigateTo('home');
-            
-            // Reset form
-            event.target.reset();
         }
 
         function socialLogin(provider) {
@@ -1968,7 +2035,7 @@
             currentUser = null;
             isAuthenticated = false;
             updateAuthUI();
-            showLoginPage();
+            // showLoginPage();
         }
 
         // Theme Management
@@ -2019,6 +2086,7 @@
                 loadRooms();
             } else if (page === 'profile') {
                 if (!isAuthenticated) {
+                    logout();
                     showLoginPage();
                     return;
                 }
@@ -2029,224 +2097,88 @@
 
         // REST API Functions
         async function apiRequest(endpoint, method = 'GET', data = null) {
-            const options = {
-                method,
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('authToken')}`
-                }
-            };
-
-            if (data) {
-                options.body = JSON.stringify(data);
-            }
-
-            try {
-                const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
-                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-                return await response.json();
-            } catch (error) {
-                console.error('API Error:', error);
-                // Return mock data for demonstration
-                return getMockData(endpoint, method);
-            }
-        }
-
-        // Mock Data (for demonstration without backend)
-        function getMockData(endpoint, method) {
-            if (endpoint.includes('/rooms') && method === 'GET') {
-                return [
-                    {
-                        id: '1',
-                        name: 'Backend Development Hub',
-                        description: 'Discuss backend architecture, APIs, databases, and best practices.',
-                        type: 'public',
-                        participants: 12
-                    },
-                    {
-                        id: '2',
-                        name: 'Team Collaboration Space',
-                        description: 'Private room for team discussions and project planning.',
-                        type: 'private',
-                        participants: 5
-                    },
-                    {
-                        id: '3',
-                        name: 'AI & Machine Learning',
-                        description: 'Discussing the latest in AI technology, models, and applications.',
-                        type: 'public',
-                        participants: 28
-                    },
-                    {
-                        id: '4',
-                        name: 'Gaming Community',
-                        description: 'Connect with fellow gamers and discuss your favorite games.',
-                        type: 'public',
-                        participants: 45
-                    },
-                    {
-                        id: '5',
-                        name: 'Web3 & Blockchain',
-                        description: 'Explore decentralized technologies and crypto innovations.',
-                        type: 'public',
-                        participants: 19
-                    },
-                    {
-                        id: '6',
-                        name: 'Design & UX',
-                        description: 'Share design inspiration and discuss user experience.',
-                        type: 'public',
-                        participants: 23
+                    const options = {
+                    method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        // Send the token if we have one
+                        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
                     }
-                ];
-            } else if (endpoint.includes('/blogs') && method === 'GET') {
-                return [
-                    {
-                        id: '1',
-                        title: 'Getting Started with RESTful APIs',
-                        content: 'In this comprehensive guide, I will walk you through everything you need to know about building RESTful APIs. We\'ll cover HTTP methods, status codes, authentication, and best practices for API design. Whether you\'re a beginner or looking to refine your skills, this guide has something for everyone.',
-                        excerpt: 'A comprehensive guide to understanding and building RESTful APIs from scratch. Learn about HTTP methods, authentication, and best practices.',
-                        author: {
-                            id: 'user_201',
-                            firstName: 'Sarah',
-                            lastName: 'Johnson',
-                            username: 'sarahj'
-                        },
-                        likes: 124,
-                        comments: 23,
-                        date: 'Feb 1, 2026'
-                    },
-                    {
-                        id: '2',
-                        title: 'The Future of XR Technology',
-                        content: 'Extended Reality (XR) is transforming how we interact with digital content. This post explores the latest developments in VR, AR, and MR technologies, and what the future holds for immersive experiences.',
-                        excerpt: 'Exploring the cutting-edge developments in Virtual Reality, Augmented Reality, and Mixed Reality technologies.',
-                        author: {
-                            id: 'user_202',
-                            firstName: 'Michael',
-                            lastName: 'Chen',
-                            username: 'mchen'
-                        },
-                        likes: 89,
-                        comments: 15,
-                        date: 'Jan 31, 2026'
-                    },
-                    {
-                        id: '3',
-                        title: 'Building Scalable Backend Systems',
-                        content: 'Scalability is crucial for modern applications. In this post, I share my experience building systems that can handle millions of users, discussing microservices, load balancing, caching strategies, and database optimization.',
-                        excerpt: 'Learn how to design and implement backend systems that scale from hundreds to millions of users.',
-                        author: {
-                            id: 'user_203',
-                            firstName: 'Emily',
-                            lastName: 'Rodriguez',
-                            username: 'emilyrod'
-                        },
-                        likes: 156,
-                        comments: 31,
-                        date: 'Jan 30, 2026'
-                    },
-                    {
-                        id: '4',
-                        title: 'WebSocket vs REST: When to Use What',
-                        content: 'Choosing between WebSocket and REST can be confusing. This article breaks down the differences, use cases, and provides practical examples of when to use each technology in your applications.',
-                        excerpt: 'A detailed comparison of WebSocket and REST APIs with real-world use cases and implementation tips.',
-                        author: {
-                            id: 'user_204',
-                            firstName: 'David',
-                            lastName: 'Park',
-                            username: 'davidp'
-                        },
-                        likes: 203,
-                        comments: 42,
-                        date: 'Jan 29, 2026'
-                    },
-                    {
-                        id: '5',
-                        title: 'Database Design Best Practices',
-                        content: 'A well-designed database is the foundation of any great application. This guide covers normalization, indexing, relationships, and performance optimization techniques that every developer should know.',
-                        excerpt: 'Master the fundamentals of database design including normalization, indexing, and optimization strategies.',
-                        author: {
-                            id: 'user_205',
-                            firstName: 'Lisa',
-                            lastName: 'Anderson',
-                            username: 'lisaa'
-                        },
-                        likes: 178,
-                        comments: 28,
-                        date: 'Jan 28, 2026'
-                    },
-                    {
-                        id: '6',
-                        title: 'Introduction to Socket.IO',
-                        content: 'Socket.IO makes real-time communication easy. In this tutorial, we\'ll build a real-time chat application from scratch, covering connection handling, rooms, namespaces, and error handling.',
-                        excerpt: 'Build real-time applications with Socket.IO. Step-by-step tutorial for creating a chat app.',
-                        author: {
-                            id: 'user_206',
-                            firstName: 'James',
-                            lastName: 'Wilson',
-                            username: 'jameswil'
-                        },
-                        likes: 145,
-                        comments: 19,
-                        date: 'Jan 27, 2026'
-                    }
-                ];
-            } else if (endpoint.includes('/profile') && method === 'GET') {
-                return {
-                    firstName: currentUser?.firstName || 'Ahmed',
-                    lastName: currentUser?.lastName || 'Shawky',
-                    username: currentUser?.username || 'ShawkyXR',
-                    roomsCreated: 3,
-                    blogsPublished: 12,
-                    totalConnections: 156
                 };
-            }
-            return {};
+
+                if (data) {
+                    options.body = JSON.stringify(data);
+                }
+
+                try {
+                    const response = await fetch(`${API_BASE_URL}${endpoint}`, options);
+                    const responseData = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(responseData.message || 'API request failed');
+                    }
+
+                    return responseData;
+                } catch (error) {
+                    console.error('API Error:', error);
+                    alert("Cannot connect to backend: " + error.message);
+                    return []; // Return empty array or null to prevent crash
+                }
         }
+
 
         // Load Blogs on Home Page
         async function loadHomeBlogs() {
             const blogsGrid = document.getElementById('homeBlogsGrid');
             blogsGrid.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading blogs...</p></div>';
 
-            const blogs = await apiRequest('/blogs');
+            const blogsReq = await apiRequest('/blog');
+            const blogs = blogsReq.data || [];
             
             blogsGrid.innerHTML = '';
             if (blogs.length === 0) {
-                blogsGrid.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 3rem;">No blogs found. Be the first to write one!</p>';
+                blogsGrid.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 3rem;">No blogs found.</p>';
                 return;
             }
 
             blogs.forEach(blog => {
                 const blogCard = document.createElement('div');
                 blogCard.className = 'home-blog-card';
-                const authorInitials = `${blog.author.firstName[0]}${blog.author.lastName[0]}`;
+                
+                // Open blog when clicking anywhere on the card
+                blogCard.onclick = (e) => {
+                    // Prevent opening the blog if the user clicked a button (like or read more)
+                    if (e.target.tagName !== 'BUTTON' && e.target.parentElement.tagName !== 'BUTTON') {
+                        viewBlog(blog._id || blog.id);
+                    }
+                };
+
+                const username = blog.username || 'Unknown';
+                const authorInitials = `${username[0]}${(username[1] || '')}`;
+                const blogDate = blog.createdAt ? new Date(blog.createdAt).toLocaleDateString() : 'Unknown date';
                 
                 blogCard.innerHTML = `
                     <div class="home-blog-header">
-                        <div class="blog-author-avatar ">${authorInitials}</div>
+                        <div class="blog-author-avatar">${authorInitials}</div>
                         <div class="blog-author-info">
-                            <div class="blog-author-name">${blog.author.firstName} ${blog.author.lastName}</div>
-                            <div class="blog-date">${blog.date}</div>
+                            <div class="blog-author-name">${username}</div>
+                            <div class="blog-date">${blogDate}</div>
                         </div>
                     </div>
                     <div class="home-blog-content">
-                        <h3 class="home-blog-title">${blog.title}</h3>
-                        <p class="home-blog-excerpt">${blog.excerpt}</p>
+                        <h3 class="home-blog-title">${blog.title || 'Untitled'}</h3>
+                        <p class="home-blog-excerpt">${blog.content?.substring(0, 150)}...</p>
                     </div>
                     <div class="home-blog-footer">
                         <div class="blog-stats">
-                            <button class="stat-btn" onclick="likeBlog('${blog.id}')">
-                                <span>👍</span>
-                                <span>${blog.likes}</span>
+                            <button class="stat-btn" onclick="likeBlog('${blog._id || blog.id}')">
+                                <span>👍</span> <span>${blog.likes?.length || 0}</span>
                             </button>
                             <button class="stat-btn">
-                                <span>💬</span>
-                                <span>${blog.comments}</span>
+                                <span>💬</span> <span>${blog.comments?.length || 0}</span>
                             </button>
                         </div>
-                        <button class="read-more-btn" onclick="viewBlog('${blog.id}')">Read More</button>
+                        <button class="read-more-btn" onclick="viewBlog('${blog._id || blog.id}')">Read More</button>
                     </div>
                 `;
                 blogsGrid.appendChild(blogCard);
@@ -2277,25 +2209,175 @@
 
         // Like Blog
         async function likeBlog(blogId) {
-            await apiRequest(`/blogs/${blogId}/like`, 'POST');
-            // Reload blogs to show updated like count
-            if (document.getElementById('homePage').style.display !== 'none') {
-                loadHomeBlogs();
-            } else {
-                loadBlogs();
+            if (!isAuthenticated) {
+                logout();
+                return showAuthAlert("Login to like this blog!");
+            }
+
+            try {
+                // Your backend route for liking usually toggles automatically 
+                // if the user ID is already in the likes array.
+                await apiRequest(`/blog/${blogId}/like`, 'POST');
+                
+                // Refresh the current view to update counts
+                const currentPage = document.querySelector('.page[style*="display: block"]').id;
+                
+                if (currentPage === 'homePage') {
+                    loadHomeBlogs();
+                } else if (currentPage === 'profilePage') {
+                    loadProfile(); 
+                } else if (currentPage === 'blogViewPage') {
+                    viewBlog(blogId);
+                }
+            } catch (error) {
+                console.error("Error liking blog:", error);
             }
         }
 
-        // View Blog Detail (placeholder - can expand this)
-        function viewBlog(blogId) {
-            alert(`View blog ${blogId} - This would open a detailed view in a real implementation`);
-            // In production, you would navigate to a blog detail page or open a modal
+        function renderComments(comments) {
+            const list = document.getElementById('commentsList');
+            list.innerHTML = '';
+            
+            if (!comments || comments.length === 0) {
+                list.innerHTML = '<p class="blog-date">No comments yet.</p>';
+                return;
+            }
+
+            comments.forEach(c => {
+                const div = document.createElement('div');
+                div.className = 'blog-card';
+                div.style.cursor = 'default';
+
+                const isAuthor = c.username === currentUser?.username;
+
+                div.innerHTML = `
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div style="flex: 1;">
+                            <div class="blog-author-name" style="font-size: 0.9rem;">${c.username || 'User'}</div>
+                            <div class="blog-excerpt" style="margin-bottom: 0;">${c.content}</div>
+                            <div class="blog-date" style="font-size: 0.75rem; color: var(--text-tertiary); margin-top: 0.5rem;"></div>
+                        </div>
+                        ${isAuthor ? `
+                        <button class="action-btn" style="color: #ff4d4d; border-color: transparent; margin-left: 1rem;" 
+                                onclick="deleteComment('${c._id}')">
+                            Delete
+                        </button>
+                    ` : ''}
+                    </div>
+                `;
+                list.appendChild(div);
+            });
         }
 
-        // Load Rooms
+        
+        async function submitComment() {
+            if (!isAuthenticated) {
+                logout();
+                return showAuthAlert("Login to post a comment!");
+            }
+            
+            const content = document.getElementById('commentInput').value.trim();
+            if (!content) return;
+
+            const response = await apiRequest(`/blog/${activeBlogId}/comment`, 'POST', { content });
+            if (response) {
+                document.getElementById('commentInput').value = '';
+                viewBlog(activeBlogId); // Refresh view
+            }
+        }
+        
+        async function deleteComment(commentId) {
+            if (!isAuthenticated) {
+                logout();
+                return showAuthAlert("Login to delete this comment!");
+            }
+
+            const response = await apiRequest(`/blog/${activeBlogId}/comment/${commentId}`, 'DELETE');
+            if (response) {
+                viewBlog(activeBlogId); // Refresh view
+            }
+        }
+
+        function showAuthAlert(message = "Please login to perform this action.") {
+            // Remove existing popup if there is one
+            const existing = document.querySelector('.auth-popup');
+            if (existing) existing.remove();
+
+            const popup = document.createElement('div');
+            popup.className = 'auth-popup';
+            popup.innerHTML = `
+                <span>⚠️ ${message}</span>
+                <span class="login-link" onclick="showLoginPage(); this.parentElement.remove();">Login Now</span>
+            `;
+
+            document.body.appendChild(popup);
+
+            // Auto-remove after 4 seconds
+            setTimeout(() => {
+                if (popup) {
+                    popup.style.animation = "slideInRight 0.4s ease reverse";
+                    setTimeout(() => popup.remove(), 400);
+                }
+            }, 4000);
+        }
+
+        // View Blog Detail (placeholder - can expand this)
+        async function viewBlog(blogId) {
+            const response = await apiRequest(`/blog/${blogId}`);
+            if (!response || !response.data) return;
+            
+            const blog = response.data;
+            activeBlogId = blogId;
+
+            document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
+            document.getElementById('blogViewPage').style.display = 'block';
+
+            const firstName = blog.author?.firstName || 'User';
+            const lastName = blog.author?.lastName || '';
+            const authorInitials = `${firstName[0]}${(lastName[0] || '')}`;
+            const blogDate = new Date(blog.createdAt).toLocaleDateString();
+
+            // Check if current user is the author of the blog
+            const isBlogAuthor = currentUser && (blog.author?._id === currentUser.id || blog.author === currentUser.id);
+
+            document.getElementById('fullBlogContent').innerHTML = `
+                <div class="auth-card" style="max-width: 100%; border-radius: 16px; padding: 2rem;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem;">
+                        <div style="display: flex; align-items: center; gap: 1rem;">
+                            <div class="blog-author-avatar" style="width: 50px; height: 50px; font-size: 1.2rem;">
+                                ${authorInitials}
+                            </div>
+                            <div>
+                                <div style="font-weight: 700; color: var(--text-primary);">${firstName} ${lastName}</div>
+                                <div style="font-size: 0.85rem; color: var(--text-tertiary);">${blogDate}</div>
+                            </div>
+                        </div>
+                        
+                        ${isBlogAuthor ? `
+                            <button class="action-btn" style="color: #ff4d4d; border-color: #ff4d4d; padding: 0.6rem 1rem;" 
+                                    onclick="deleteBlog('${blog._id || blog.id}')">
+                                Delete Blog
+                            </button>
+                        ` : ''}
+                    </div>
+
+                    <h1 style="font-family: 'Space Mono', monospace; font-size: 2.5rem; margin-bottom: 1.5rem; color: var(--accent-primary);">
+                        ${blog.title}
+                    </h1>
+                    
+                    <div style="font-size: 1.1rem; line-height: 1.8; color: var(--text-secondary);">
+                        ${blog.content}
+                    </div>
+                </div>
+            `;
+
+            renderComments(blog.comments);
+        }
+                // Load Rooms
         async function loadRooms() {
             const roomsGrid = document.getElementById('roomsGrid');
-            roomsGrid.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading rooms...</p></div>';
+            roomsGrid.innerHTML = '<div class="loading"><div class="spinner"></div><p>Rooms Under Development</p></div>';
+            return; // Remove this line when backend is ready
 
             const rooms = await apiRequest('/rooms');
             
@@ -2325,6 +2407,7 @@
         // Modal Management
         function openCreateRoomModal() {
             if (!isAuthenticated) {
+                logout();
                 showLoginPage();
                 return;
             }
@@ -2333,6 +2416,7 @@
 
         function openCreateBlogModal() {
             if (!isAuthenticated) {
+                logout();
                 showLoginPage();
                 return;
             }
@@ -2374,6 +2458,7 @@
         // Join Room (Socket.IO connection)
         function joinRoom(roomId, roomName) {
             if (!isAuthenticated) {
+                logout();
                 showLoginPage();
                 return;
             }
@@ -2514,39 +2599,49 @@
         // Load Profile
         async function loadProfile() {
             const profile = await apiRequest('/profile');
-            
-            document.getElementById('profileName').textContent = `${profile.firstName} ${profile.lastName}`;
-            document.getElementById('profileUsername').textContent = `@${profile.username}`;
-            document.getElementById('profileAvatar').textContent = `${profile.firstName[0]}${profile.lastName[0]}`;
-            document.getElementById('roomsCreated').textContent = profile.roomsCreated;
-            document.getElementById('blogsPublished').textContent = profile.blogsPublished;
-            document.getElementById('totalConnections').textContent = profile.totalConnections;
 
-            loadBlogs();
+            document.getElementById('profileName').textContent = `${profile.data.firstName} ${profile.data.lastName}`;
+            document.getElementById('profileUsername').textContent = `@${profile.data.username}`;
+            document.getElementById('profileAvatar').textContent = `${profile.data.firstName[0]}${profile.data.lastName[0]}`;
+            document.getElementById('roomsCreated').textContent = profile.data.roomsCreated;
+            document.getElementById('blogsPublished').textContent = profile.data.blogsPublished;
+            document.getElementById('totalConnections').textContent = profile.data.totalConnections;
+
+            loadBlogs(profile.data.username);
         }
 
         // Load Blogs
-        async function loadBlogs() {
-            const blogs = await apiRequest('/blogs');
+        async function loadBlogs(username) {
+            const blogsReq = await apiRequest(`/blog/user/${username}`);
+            const blogs = blogsReq.data || [];
             const blogList = document.getElementById('blogList');
             
             blogList.innerHTML = '';
             blogs.forEach(blog => {
+                const date = new Date(blog.createdAt).toLocaleDateString();
                 const blogCard = document.createElement('div');
                 blogCard.className = 'blog-card';
+                
+                // Clicking the block opens the full blog
+                blogCard.onclick = (e) => {
+                    if (e.target.tagName !== 'BUTTON' && e.target.parentElement.tagName !== 'BUTTON') {
+                        viewBlog(blog._id || blog.id);
+                    }
+                };
+
                 blogCard.innerHTML = `
                     <h3 class="blog-title">${blog.title}</h3>
-                    <p class="blog-excerpt">${blog.excerpt}</p>
+                    <p class="blog-excerpt">${blog.content.substring(0, 100)}...</p>
                     <div class="blog-meta">
-                        <span>${blog.date}</span>
+                        <span>${date}</span>
                         <div class="blog-actions">
-                            <button class="action-btn">
+                            <button class="action-btn" onclick="likeBlog('${blog._id || blog.id}')">
                                 <span>👍</span>
-                                <span>${blog.likes}</span>
+                                <span>${blog.likes?.length || 0}</span>
                             </button>
                             <button class="action-btn">
                                 <span>💬</span>
-                                <span>${blog.comments}</span>
+                                <span>${blog.comments?.length || 0}</span>
                             </button>
                         </div>
                     </div>
@@ -2563,9 +2658,9 @@
                 content: document.getElementById('blogContent').value
             };
 
-            await apiRequest('/blogs', 'POST', blogData);
+            await apiRequest('/blog', 'POST', blogData);
             closeModal('createBlogModal');
-            loadBlogs();
+            loadHomeBlogs();
             
             // Reset form
             event.target.reset();

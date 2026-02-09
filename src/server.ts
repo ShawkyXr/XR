@@ -1,22 +1,29 @@
 import express from 'express';
+import cors from 'cors';
 import dotenv from 'dotenv';
+dotenv.config();
 import connectToDatabase from './config/database';
+import { PORT } from './config/constants';
 import { router as usersRouters } from './routes/users.routes';
 import { router as blogsRouters } from './routes/blogs.routes';
-import { router as commentsRouter } from './routes/comments.routes';
+import { router as roomsRouters } from './routes/room.route';
   
-dotenv.config();
 const app = express();
+app.use(cors());
 app.use(express.json());
 
-connectToDatabase();
 
-const PORT = process.env.PORT || 1234;
+app.use('/api/profile', usersRouters);
+app.use('/api/blog', blogsRouters);
+app.use('/api/rooms', roomsRouters);
 
-app.use('/', blogsRouters);
-app.use('/profile', usersRouters);
-app.use('/', commentsRouter);
-
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+connectToDatabase()
+.then(() => {
+  app.listen(PORT, () => {
+    console.log(`Server is running on port ${PORT}`);
+  });
+})
+.catch((error) => {
+  console.error('Failed to connect to database:', error);
+  process.exit(1);
 });

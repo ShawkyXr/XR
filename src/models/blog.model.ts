@@ -10,8 +10,8 @@ const BlogSchema = new Schema<IBlog>({
     title: { type: String, required: true },
     username: { type: String, required: true },
     content: { type: String, required: true },
-    likes: { type: Number, default: 0 },
-    comments: { default: [] },
+    likes: { type: [String], default: [] },
+    comments: { type: [Object], default: [] },
     createdAt: { type: Date, default: Date.now }
 });
 
