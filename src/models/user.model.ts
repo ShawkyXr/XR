@@ -7,8 +7,9 @@ export interface IUser {
     email: string;
     password: string;
     blogs: string[];
-    room: string | null;
     token: string;
+    room?: string | null;
+    socketId?: string;
     createdAt?: Date;
 }
 

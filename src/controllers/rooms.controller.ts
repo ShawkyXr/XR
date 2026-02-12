@@ -3,7 +3,8 @@ import { IRoom, RoomModel } from '../models/room.model';
 
 export const getAllRooms = async (req: Request, res: Response) => {
     try{
-        const rooms: IRoom[] = await RoomModel.find();
+        // Don't expose access codes in the public room list for security
+        const rooms: IRoom[] = await RoomModel.find().select('-accessCode');
 
         res.status(200).json({ message: 'All rooms retrieved successfully', data: rooms });
     }catch (error) {
@@ -29,7 +30,7 @@ export const getRoomById = async (req: Request, res: Response) => {
 
 export const createRoom = async (req: Request, res: Response) => {
     try{
-        const { name, description, maxParticipants, type } = req.body;
+        const { name, description, type, accessCode } = req.body;
         const username = (req as any).user.username;
         
         if (!username) {
@@ -39,32 +40,24 @@ export const createRoom = async (req: Request, res: Response) => {
         if (!name){
             return res.status(400).json({ message: 'Name is required' });
         }
-
-        let code = null;
-
-        if (type === 'private') {
-            code = Math.random().toString(36).substring(2, 8).toUpperCase();
-
-            let existCode = await RoomModel.findOne({ code });
-
-            while (existCode) {
-                code = Math.random().toString(36).substring(2, 8).toUpperCase();
-                existCode = await RoomModel.findOne({ code });
-            }
+        
+        // Validate that private rooms have an access code
+        if (type === 'private' && !accessCode) {
+            return res.status(400).json({ message: 'Access code is required for private rooms' });
         }
-
+        
         const newRoom = new RoomModel({
             name,
             description,
-            maxParticipants,
             type,
-            code,
+            accessCode: type === 'private' ? accessCode : null,
             createdBy: username
         });
 
-        await newRoom.save();
-        res.status(201).json({ message: 'Room created successfully', data: newRoom });
+        const savedRoom = await newRoom.save();
+        res.status(201).json({ message: 'Room created successfully', data: savedRoom });
     }catch (error) {
+        console.error('Error creating room:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 }
@@ -74,13 +67,13 @@ export const joinRoom = async (req: Request, res: Response) => {
 
         const { roomId, type } = req.params;
         const username = (req as any).user.username;
-        let code = null;
+        let accessCode = null;
 
         if (type === 'private') {
-            code = req.body.code;
+            accessCode = req.body.accessCode;
 
-            if (!code) {
-                return res.status(400).json({ message: 'Code is required for private rooms' });
+            if (!accessCode) {
+                return res.status(400).json({ message: 'Access code is required for private rooms' });
             }
         }
 
@@ -90,13 +83,14 @@ export const joinRoom = async (req: Request, res: Response) => {
             return res.status(404).json({ message: 'Room not found' });
         }
 
-        if (room.type === 'private' && room.code !== code) {
-            return res.status(403).json({ message: 'Invalid code for private room' });
+        if (room.type === 'private' && room.accessCode !== accessCode) {
+            return res.status(403).json({ message: 'Invalid access code for private room' });
         }
 
-        res.status(200).json({ message: `Joined room: ${room.name} successfully` });
+        res.status(200).json({ message: `Joined room: ${room.name} successfully`, data: room });
 
     }catch (error) {
+        console.error('Error joining room:', error);
         res.status(500).json({ error: 'Internal Server Error' });
     }
 };

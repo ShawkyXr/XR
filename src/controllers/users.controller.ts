@@ -2,8 +2,6 @@ import { Request, Response } from "express";
 import bcrypt from "bcryptjs";
 import { generateToken, verifyToken, JwtPayload } from "../utils/jwt.util";
 import { IUser , UserModel } from "../models/user.model";
-import { format } from "node:path";
-
 
 export const getMyProfile = async(req: Request, res: Response) =>{
     try{

@@ -26,12 +26,22 @@ export const getBlogbyId = async (req: Request, res: Response) => {
     try {
         const { blogId } = req.params;
         const blog: IBlog | null = await BlogModel.findById(blogId);
-
+        
         if (!blog) {
             return res.status(404).json({ message: 'Blog not found' });
         }
+        const user: IUser | null = await UserModel.findOne({ username: blog.username });
 
-        res.status(200).json({ message: `Blog with ID: ${blogId} retrieved successfully`, data: blog });
+        if (!user){
+            return res.status(404).json({ message: 'Author not found' });
+        }
+        
+        const data = {
+            blog,
+            user
+        }
+
+        res.status(200).json({ message: `Blog with ID: ${blogId} retrieved successfully`, data });
     } catch (error) {
         res.status(500).json({ error: 'Internal Server Error' });
     }
