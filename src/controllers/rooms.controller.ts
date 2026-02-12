@@ -1,14 +1,15 @@
 import { Request, Response } from 'express';
 import { IRoom, RoomModel } from '../models/room.model';
+import { IUser, UserModel } from '../models/user.model';
+import { HTTP_STATUS, ERROR_CODES } from '../config/constants';
 
 export const getAllRooms = async (req: Request, res: Response) => {
     try{
-        // Don't expose access codes in the public room list for security
         const rooms: IRoom[] = await RoomModel.find().select('-accessCode');
 
-        res.status(200).json({ message: 'All rooms retrieved successfully', data: rooms });
-    }catch (error) {
-        res.status(500).json({ error: 'Internal Server Error' });
+        res.status(HTTP_STATUS.OK).json({ message: 'All rooms retrieved successfully', data: rooms });
+    }catch (error: any) {
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: ERROR_CODES.INTERNAL_ERROR, message: error.message || 'Internal Server Error' });
     }
 }
 
@@ -19,12 +20,12 @@ export const getRoomById = async (req: Request, res: Response) => {
         const room: IRoom | null = await RoomModel.findById(roomId);
 
         if (!room){
-            return res.status(404).json({ message: 'Room not found' });
+            return res.status(HTTP_STATUS.NOT_FOUND).json({ error: ERROR_CODES.NOT_FOUND, message: 'Room not found' });
         }
 
-        res.status(200).json({ message: `Room with ID: ${roomId} retrieved successfully`, data: room });
-    }catch (error) {
-        res.status(500).json({ error: 'Internal Server Error' });
+        res.status(HTTP_STATUS.OK).json({ message: `Room with ID: ${roomId} retrieved successfully`, data: room });
+    }catch (error: any) {
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: ERROR_CODES.INTERNAL_ERROR, message: error.message || 'Internal Server Error' });
     }
 }
 
@@ -33,17 +34,18 @@ export const createRoom = async (req: Request, res: Response) => {
         const { name, description, type, accessCode } = req.body;
         const username = (req as any).user.username;
         
-        if (!username) {
-            return res.status(401).json({ message: 'Unauthorized' });
+        const user = await UserModel.findOne({ username });
+
+        if (!username || !user) {
+            return res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: ERROR_CODES.UNAUTHORIZED, message: 'Unauthorized User' });
         }
         
         if (!name){
-            return res.status(400).json({ message: 'Name is required' });
+            return res.status(HTTP_STATUS.BAD_REQUEST).json({ error: ERROR_CODES.VALIDATION_ERROR, message: 'Name is required' });
         }
         
-        // Validate that private rooms have an access code
         if (type === 'private' && !accessCode) {
-            return res.status(400).json({ message: 'Access code is required for private rooms' });
+            return res.status(HTTP_STATUS.BAD_REQUEST).json({ error: ERROR_CODES.VALIDATION_ERROR, message: 'Access code is required for private rooms' });
         }
         
         const newRoom = new RoomModel({
@@ -54,87 +56,88 @@ export const createRoom = async (req: Request, res: Response) => {
             createdBy: username
         });
 
+        
         const savedRoom = await newRoom.save();
-        res.status(201).json({ message: 'Room created successfully', data: savedRoom });
-    }catch (error) {
-        console.error('Error creating room:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        
+        user.roomsCreated.push(savedRoom._id.toString());
+        await user.save();
+
+        res.status(HTTP_STATUS.CREATED).json({ message: 'Room created successfully', data: savedRoom });
+    }catch (error: any) {
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: ERROR_CODES.INTERNAL_ERROR, message: error.message || 'Internal Server Error' });
     }
 }
 
 export const joinRoom = async (req: Request, res: Response) => {
     try{
-
-        const { roomId, type } = req.params;
+        const { roomId } = req.params;
         const username = (req as any).user.username;
         let accessCode = null;
+        
+        if (!username){
+            return res.status(HTTP_STATUS.UNAUTHORIZED).json({error: ERROR_CODES.UNAUTHORIZED, message: 'Unauthorized User' });
+        }
+
+        const room = await RoomModel.findById(roomId);
+
+        if (!room) {
+            return res.status(HTTP_STATUS.NOT_FOUND).json({ error: ERROR_CODES.NOT_FOUND, message: 'Room not found' });
+        }
+
+        const type = room.type;
 
         if (type === 'private') {
             accessCode = req.body.accessCode;
-
+            
             if (!accessCode) {
-                return res.status(400).json({ message: 'Access code is required for private rooms' });
+                return res.status(HTTP_STATUS.BAD_REQUEST).json({error: ERROR_CODES.VALIDATION_ERROR, message: 'Access code is required for private rooms' });
             }
         }
-
-        const room = await RoomModel.findById(roomId);
+        
         
         if (!room) {
-            return res.status(404).json({ message: 'Room not found' });
+            return res.status(HTTP_STATUS.NOT_FOUND).json({ error: ERROR_CODES.NOT_FOUND, message: 'Room not found' });
         }
 
         if (room.type === 'private' && room.accessCode !== accessCode) {
-            return res.status(403).json({ message: 'Invalid access code for private room' });
+            return res.status(HTTP_STATUS.FORBIDDEN).json({ error: ERROR_CODES.FORBIDDEN, message: 'Invalid access code for private room' });
         }
 
-        res.status(200).json({ message: `Joined room: ${room.name} successfully`, data: room });
 
-    }catch (error) {
-        console.error('Error joining room:', error);
-        res.status(500).json({ error: 'Internal Server Error' });
+        res.status(HTTP_STATUS.OK).json({ message: `Joined room: ${room.name} successfully`, data: room });
+    }catch (error: any) {
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: ERROR_CODES.INTERNAL_ERROR, message: error.message || 'Internal Server Error' });
     }
 };
 
-
-// useless for now, but can be used in the future to remove user from room participants list
-export const leaveRoom = async (req: Request, res: Response) => {
-    try{
-        const { roomId } = req.params;
-        const username = (req as any).user.username;
-
-        const room = await RoomModel.findById(roomId);
-        
-        if (!room) {
-            return res.status(404).json({ message: 'Room not found' });
-        }
-
-        res.status(200).json({ message: `Left room: ${room.name} successfully` });
-
-    }catch (error) {
-        res.status(500).json({ error: 'Internal Server Error' });
-    }
-};
-
-// useless for now, but can be used in the future to allow room creators to delete their rooms
 export const deleteRoom = async (req: Request, res: Response) => {
     try{
         const { roomId } = req.params;
         const username = (req as any).user.username;
 
+        const user = await UserModel.findOne({ username });
+        
+        if (!username || !user) {
+            return res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: ERROR_CODES.UNAUTHORIZED, message: 'Unauthorized User' });
+        }
+
         const room = await RoomModel.findById(roomId);
         
         if (!room) {
-            return res.status(404).json({ message: 'Room not found' });
+            return res.status(HTTP_STATUS.NOT_FOUND).json({ error: ERROR_CODES.NOT_FOUND, message: 'Room not found' });
         }
 
         if (room.createdBy !== username) {
-            return res.status(403).json({ message: 'Forbidden: Only the creator can delete this room' });
+            return res.status(HTTP_STATUS.FORBIDDEN).json({ error: ERROR_CODES.FORBIDDEN, message: 'Only the creator can delete this room' });
         }
 
         await RoomModel.findByIdAndDelete(roomId);
-        res.status(200).json({ message: `Room: ${room.name} deleted successfully` });
 
-    }catch (error) {
-        res.status(500).json({ error: 'Internal Server Error' });
+        user.roomsCreated = user.roomsCreated.filter(r => r !== roomId);
+        await user.save();
+        
+        res.status(HTTP_STATUS.OK).json({ message: 'Room deleted successfully' });
+    }catch (error: any) {
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: ERROR_CODES.INTERNAL_ERROR, message: error.message || 'Internal Server Error' });
     }
 };

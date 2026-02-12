@@ -1,14 +1,15 @@
-
 import { Request, Response } from 'express';
 import { IBlog, BlogModel } from '../models/blog.model';
 import { IUser, UserModel } from '../models/user.model';
+import { HTTP_STATUS, ERROR_CODES } from '../config/constants';
 
 export const getAllBlogs = async (req: Request, res: Response) => {
     try {
         const blogs: IBlog[] = await BlogModel.find();
-        res.status(200).json({ message: 'All blogs retrieved successfully', data: blogs });
-    } catch (error) {
-        res.status(500).json({ error: 'Internal Server Error' });
+        
+        res.status(HTTP_STATUS.OK).json({ message: 'All blogs retrieved successfully', data: blogs });
+    } catch (error: any) {
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: ERROR_CODES.INTERNAL_ERROR, message: error.message || 'Internal Server Error' });
     }
 }
 
@@ -16,9 +17,10 @@ export const getAllBlogsforUser = async (req: Request, res: Response) => {
     try {
         const { username } = req.params;
         const blogs: IBlog[] = await BlogModel.find({ username });
-        res.status(200).json({ message: `All blogs for user ${username} retrieved successfully`, data: blogs });
-    } catch (error) {
-        res.status(500).json({ error: 'Internal Server Error' });
+
+        res.status(HTTP_STATUS.OK).json({ message: `All blogs for user ${username} retrieved successfully`, data: blogs });
+    } catch (error: any) {
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: ERROR_CODES.INTERNAL_ERROR, message: error.message || 'Internal Server Error' });
     }
 };
 
@@ -28,12 +30,12 @@ export const getBlogbyId = async (req: Request, res: Response) => {
         const blog: IBlog | null = await BlogModel.findById(blogId);
         
         if (!blog) {
-            return res.status(404).json({ message: 'Blog not found' });
+            return res.status(HTTP_STATUS.NOT_FOUND).json({ error: ERROR_CODES.NOT_FOUND, message: 'Blog not found' });
         }
         const user: IUser | null = await UserModel.findOne({ username: blog.username });
 
         if (!user){
-            return res.status(404).json({ message: 'Author not found' });
+            return res.status(HTTP_STATUS.NOT_FOUND).json({ error: ERROR_CODES.NOT_FOUND, message: 'Author not found' });
         }
         
         const data = {
@@ -41,9 +43,9 @@ export const getBlogbyId = async (req: Request, res: Response) => {
             user
         }
 
-        res.status(200).json({ message: `Blog with ID: ${blogId} retrieved successfully`, data });
-    } catch (error) {
-        res.status(500).json({ error: 'Internal Server Error' });
+        res.status(HTTP_STATUS.OK).json({ message: `Blog with ID: ${blogId} retrieved successfully`, data });
+    } catch (error: any) {
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: ERROR_CODES.INTERNAL_ERROR, message: error.message || 'Internal Server Error' });
     }
 }
 
@@ -56,7 +58,7 @@ export const createBlog = async (req : Request, res: Response) =>{
         const user = await UserModel.findById(userId);
 
         if (!user){
-            return res.status(404).json({ message: 'User not found' });
+            return res.status(HTTP_STATUS.NOT_FOUND).json({ error: ERROR_CODES.NOT_FOUND, message: 'User not found' });
         }
         
         const newBlog = new BlogModel({
@@ -69,9 +71,9 @@ export const createBlog = async (req : Request, res: Response) =>{
         await user.save();
         await newBlog.save();
         
-        res.status(200).json({message: 'Blog is created', data: newBlog});
-    }catch(error){
-        res.status(500).json({ error: 'Internal Server Error' });
+        res.status(HTTP_STATUS.CREATED).json({message: 'Blog is created', data: newBlog});
+    }catch(error: any){
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: ERROR_CODES.INTERNAL_ERROR, message: error.message || 'Internal Server Error' });
     }
 }
 
@@ -81,14 +83,14 @@ export const deleteBlogbyId = async (req : Request, res: Response) =>{
         const { blogId } = req.params;
         const username = (req as any).user.username;
 
-        const blog = await BlogModel.findOne({ _id: blogId, username });
+        const blog: IBlog | null = await BlogModel.findOne({ _id: blogId, username });
         
         if (!blog){
-            return res.status(404).json({ message: 'Blog not found' });
+            return res.status(HTTP_STATUS.NOT_FOUND).json({ error: ERROR_CODES.NOT_FOUND, message: 'Blog not found' });
         }
 
         if (blog.username !== username){
-            return res.status(403).json({ message: 'Forbidden' });
+            return res.status(HTTP_STATUS.FORBIDDEN).json({ error: ERROR_CODES.FORBIDDEN, message: 'Forbidden User' });
         }
 
         await BlogModel.deleteOne({ _id: blogId, username });
@@ -100,9 +102,9 @@ export const deleteBlogbyId = async (req : Request, res: Response) =>{
             await user.save();
         }
 
-        res.status(200).json({message: 'Blog is deleted'});
-    }catch(error){
-        res.status(500).json({ error: 'Internal Server Error' });
+        res.status(HTTP_STATUS.OK).json({message: 'Blog is deleted'});
+    }catch(error: any){
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: ERROR_CODES.INTERNAL_ERROR, message: error.message || 'Internal Server Error' });
     }
 }
 
@@ -115,20 +117,20 @@ export const editBlog = async (req: Request, res: Response) =>{
         const blog = await BlogModel.findOne({ _id: blogId, username });
         
         if (!blog){
-            return res.status(404).json({ message: 'Blog not found' });
+            return res.status(HTTP_STATUS.NOT_FOUND).json({ error: ERROR_CODES.NOT_FOUND, message: 'Blog not found' });
         }
 
         if (blog.username !== username){
-            return res.status(403).json({ message: 'Forbidden' });
+            return res.status(HTTP_STATUS.FORBIDDEN).json({ error: ERROR_CODES.FORBIDDEN, message: 'Forbidden User' });
         }
 
         const updatedBlog = await BlogModel.updateOne(
             { _id: blogId, username },
             { $set: { title, content } }
         );
-        res.status(200).json({message: 'Blog is updated'});
-    }catch(error){
-        res.status(500).json({ error: 'Internal Server Error' });
+        res.status(HTTP_STATUS.OK).json({message: 'Blog is updated', data: updatedBlog});
+    }catch(error: any){
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: ERROR_CODES.INTERNAL_ERROR, message: error.message || 'Internal Server Error' });
     }
 }
 
@@ -143,20 +145,20 @@ export const likeBlog = async (req: Request, res: Response) => {
 
         
         if (!blog) {
-            return res.status(404).json({ message: 'Blog not found' });
+            return res.status(HTTP_STATUS.NOT_FOUND).json({ error: ERROR_CODES.NOT_FOUND, message: 'Blog not found' });
         }
 
         if (blog.likes.includes(username)) {
             blog.likes = blog.likes.filter((user) => user !== username);
             await blog.save();
-            return res.status(200).json({ message: 'Blog unliked successfully' });
+            return res.status(HTTP_STATUS.OK).json({ message: 'Blog unliked successfully' });
         }
 
         blog.likes.push(username);
         await blog.save();
 
-        res.status(200).json({ message: 'Blog liked successfully' });
-    } catch (error) {
-        res.status(500).json({ error: 'Internal Server Error' });
+        res.status(HTTP_STATUS.OK).json({ message: 'Blog liked successfully' });
+    } catch (error: any) {
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: ERROR_CODES.INTERNAL_ERROR, message: error.message || 'Internal Server Error' });
     }
 }

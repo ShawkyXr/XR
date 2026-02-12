@@ -8,7 +8,7 @@ export interface IUser {
     password: string;
     blogs: string[];
     token: string;
-    room?: string | null;
+    roomsCreated: string[];
     socketId?: string;
     createdAt?: Date;
 }
@@ -21,7 +21,7 @@ const UserSchema = new Schema<IUser>({
     password: { type: String, required: true },
     token: { type: String},
     blogs: [{ type: String }],
-    room: { type: String, default: null },
+    roomsCreated: [{ type: String, default: null }],
     createdAt: { type: Date, default: Date.now }
 });
 

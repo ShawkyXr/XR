@@ -13,13 +13,23 @@ let activeBlogId = null;
 function checkAuth() {
     const token = localStorage.getItem('authToken');
     const userData = localStorage.getItem('userData');
-    
+    const rememberMe = localStorage.getItem('rememberMe') === 'true';
+
     if (token && userData) {
         isAuthenticated = true;
         currentUser = JSON.parse(userData);
+        
+        // Ensure _id exists for socket compatibility
+        if (currentUser && currentUser.id && !currentUser._id) {
+            currentUser._id = currentUser.id;
+            localStorage.setItem('userData', JSON.stringify(currentUser));
+        }
+        
+        console.log('User authenticated:', currentUser);
     } else {
         isAuthenticated = false;
         currentUser = null;
+        console.log('No authenticated user');
     }
     updateAuthUI();
 }
@@ -70,35 +80,49 @@ async function handleLogin(event) {
 
     const email = document.getElementById('loginEmail').value;
     const password = document.getElementById('loginPassword').value;
+    const rememberMe = document.getElementById('rememberMe').checked;
 
     try {
         // Connect to your specific route: POST /api/profile/login
         const response = await fetch(`${API_BASE_URL}/profile/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
+            body: JSON.stringify({ email, password, rememberMe })
         });
 
-        const data = await response.json();
 
+        const responseData = await response.json();
+        const userData = responseData.data;
+        
         if (!response.ok) {
-            throw new Error(data.message || 'Login failed');
+            throw new Error(responseData.message || 'Login failed');
         }
 
-        // Assuming your backend returns { token: "...", user: {...} }
-        localStorage.setItem('authToken', data.token);
-        localStorage.setItem('userData', JSON.stringify(data.user)); // or fetch profile separately
-
-        currentUser = data.user;
+        localStorage.setItem('authToken', userData.token);
+        
+        // Normalize user data - ensure _id exists for socket compatibility
+        if (userData.id && !userData._id) {
+            userData._id = userData.id;
+        }
+        
+        localStorage.setItem('userData', JSON.stringify(userData));
+        currentUser = userData;
         isAuthenticated = true;
         
+        console.log('Login successful, user:', currentUser);
         updateAuthUI();
-        navigateTo('home');
         event.target.reset();
+        navigateTo('home');
 
     } catch (error) {
-        alert(error.message);
         console.error('Login Error:', error);
+        
+        // More specific error messages
+        if (error.message.includes('fetch')) {
+            alert('Cannot connect to server. Make sure the backend is running on port 1234.');
+        } else {
+            alert('Login failed: ' + error.message);
+        }
     }
 
 }
@@ -127,29 +151,25 @@ async function handleRegister(event) {
             })
         });
 
-        const data = await response.json();
+        const responseData = await response.json();
 
         if (!response.ok) {
-            throw new Error(data.message || 'Registration failed');
+            throw new Error(responseData.message || 'Registration failed');
         }
 
-        // Auto-login after register (if your backend sends token on register)
-        if (data.token) {
-            localStorage.setItem('authToken', data.token);
-            localStorage.setItem('userData', JSON.stringify(data.user));
-            currentUser = data.user;
-            isAuthenticated = true;
-            updateAuthUI();
-            navigateTo('home');
-        } else {
-            // If backend doesn't auto-login, send them to login page
-            alert("Account created! Please log in.");
-            showLoginPage();
-        }
+        alert("Account created! Please log in.");
+        showLoginPage();
         event.target.reset();
 
     } catch (error) {
-        alert(error.message);
+        console.error('Registration Error:', error);
+        
+        // More specific error messages
+        if (error.message.includes('fetch')) {
+            alert('Cannot connect to server. Make sure the backend is running on port 1234.');
+        } else {
+            alert('Registration failed: ' + error.message);
+        }
     }
 }
 
@@ -158,12 +178,21 @@ function socialLogin(provider) {
 }
 
 function logout() {
+    console.log('Logging out user');
+    
+    // Disconnect socket if connected
+    if (socket) {
+        socket.disconnect();
+        socket = null;
+    }
+    
     localStorage.removeItem('authToken');
     localStorage.removeItem('userData');
     currentUser = null;
     isAuthenticated = false;
+    currentRoom = null;
     updateAuthUI();
-    // showLoginPage();
+    navigateTo('home');
 }
 
 // Theme Management
@@ -251,19 +280,32 @@ async function apiRequest(endpoint, method = 'GET', data = null) {
             return responseData;
         } catch (error) {
             console.error('API Error:', error);
-            alert("Cannot connect to backend: " + error.message);
-            return []; // Return empty array or null to prevent crash
+            // Only alert for non-GET requests to avoid annoying popups on page load
+            if (method !== 'GET') {
+                alert("Cannot connect to backend: " + error.message);
+            }
+            return { data: [] }; // Return object with empty data array
         }
 }
 
 
 // Load Blogs on Home Page
 async function loadHomeBlogs() {
+    console.log('loadHomeBlogs called');
     const blogsGrid = document.getElementById('homeBlogsGrid');
+    
+    if (!blogsGrid) {
+        console.error('homeBlogsGrid element not found!');
+        return;
+    }
+    
+    console.log('Showing loading spinner...');
     blogsGrid.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading blogs...</p></div>';
 
     const blogsReq = await apiRequest('/blog');
+    
     const blogs = blogsReq.data || [];
+    
     
     blogsGrid.innerHTML = '';
     if (blogs.length === 0) {
@@ -340,7 +382,6 @@ function searchBlogs() {
 // Like Blog
 async function likeBlog(blogId) {
     if (!isAuthenticated) {
-        logout();
         return showAuthAlert("Login to like this blog!");
     }
 
@@ -378,7 +419,14 @@ function renderComments(comments) {
         div.className = 'blog-card';
         div.style.cursor = 'default';
 
-        const isAuthor = c.username === currentUser?.username;
+        // Check if current user is the comment author (using ID for reliability, fallback to username)
+        const isAuthor = currentUser && (
+            c.user?._id === currentUser._id || 
+            c.user?.id === currentUser.id || 
+            c.userId === currentUser._id ||
+            c.userId === currentUser.id ||
+            c.username === currentUser.username
+        );
 
         div.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
@@ -402,7 +450,6 @@ function renderComments(comments) {
 
 async function submitComment() {
     if (!isAuthenticated) {
-        logout();
         return showAuthAlert("Login to post a comment!");
     }
     
@@ -451,7 +498,49 @@ function showAuthAlert(message = "Please login to perform this action.") {
     }, 4000);
 }
 
+function showPopupAlert(message, icon = '⚠️', duration = 4000) {
+    // Remove existing popup if there is one
+    const existing = document.querySelector('.custom-popup-alert');
+    if (existing) existing.remove();
+
+    const popup = document.createElement('div');
+    popup.className = 'custom-popup-alert';
+    popup.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 0.8rem;">
+            <span style="font-size: 1.5rem;">${icon}</span>
+            <span>${message}</span>
+        </div>
+    `;
+    
+    // Add styling
+    popup.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border-color);
+        border-radius: 12px;
+        padding: 1rem 1.5rem;
+        box-shadow: var(--shadow-lg);
+        color: var(--text-primary);
+        z-index: 9999;
+        animation: slideInRight 0.4s ease;
+        max-width: 400px;
+    `;
+
+    document.body.appendChild(popup);
+
+    // Auto-remove after specified duration
+    setTimeout(() => {
+        if (popup) {
+            popup.style.animation = "slideInRight 0.4s ease reverse";
+            setTimeout(() => popup.remove(), 400);
+        }
+    }, duration);
+}
+
 function showAccessCodeModal(roomId, roomName, correctCode) {
+    console.log('Showing access code modal for room:', correctCode);
     const modal = document.getElementById('accessCodeModal');
     modal.querySelector('.modal-title').textContent = `Enter Access Code for ${roomName}`;
     const input = modal.querySelector('#accessCodeInput');
@@ -503,8 +592,7 @@ async function viewBlog(blogId) {
     });
 
     // Check if current user is the author of the blog
-    const isBlogAuthor = currentUser && (blog.user?._id === currentUser.id || blog.user === currentUser.id);
-
+    const isBlogAuthor = currentUser && (blog.username === currentUser.username);
     document.getElementById('fullBlogContent').innerHTML = `
         <div class="auth-card" style="max-width: 100%; border-radius: 16px; padding: 2rem;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem;">
@@ -602,7 +690,7 @@ async function deleteBlog(blogId) {
     if (!confirm('Are you sure you want to delete this blog?')) return;
     
     await apiRequest(`/blog/${blogId}`, 'DELETE');
-    navigateTo('Home');
+    navigateTo('home');
 }
 // Modal Management
 function openCreateRoomModal() {
@@ -683,7 +771,6 @@ async function createRoom(event) {
 // Join Room (Socket.IO connection)
 async function joinRoom(roomId, roomName, skipAccessCheck = false) {
     if (!isAuthenticated) {
-        logout();
         return showAuthAlert('Login to join this room!')
     }
     
@@ -731,12 +818,22 @@ async function joinRoom(roomId, roomName, skipAccessCheck = false) {
     
     // Initialize Socket.IO connection only once
     if (!socket) {
-        socket = io(API_BASE_URL.replace('/api', ''));
+        const token = localStorage.getItem('authToken');
+        socket = io(API_BASE_URL.replace('/api', ''), {
+            auth: {
+                token: token
+            }
+        });
         
         socket.on('connect', () => {
             console.log('Connected to chat server');
             currentUser.socketId = socket.id;
             socket.emit('join-room', { roomId: currentRoom.id, currentUser });
+        });
+        
+        socket.on('connect_error', (error) => {
+            console.error('Socket connection error:', error.message);
+            alert('Failed to connect to chat server. Please try logging in again.');
         });
         
         socket.on('message', (message) => {
@@ -750,9 +847,18 @@ async function joinRoom(roomId, roomName, skipAccessCheck = false) {
         socket.on('user-left', (data) => {
             updateParticipants(data.participants);
         });
+
+        socket.on('disconnect', (data) => {
+            updateParticipants(data.participants);
+        });
+
+        socket.on('already-in-room', () => {
+            console.log('User already in room alert');
+            showPopupAlert('You are already in this room in another tab', '🔒', 3000);
+            navigateTo('rooms')
+        });
     }
     
-    // If already connected, just join the new room
     if (socket.connected) {
         currentUser.socketId = socket.id;
         socket.emit('join-room', { roomId, currentUser });
@@ -885,21 +991,39 @@ async function loadBlogs(username) {
             }
         };
 
+        const isBlogAuthor = currentUser && (
+            blog.user?._id === currentUser._id || 
+            blog.user?.id === currentUser.id || 
+            blog.userId === currentUser._id ||
+            blog.userId === currentUser.id
+        );
+        console.log('Is current user the blog author?', isBlogAuthor);
+        
         blogCard.innerHTML = `
-            <h3 class="blog-title">${blog.title}</h3>
-            <p class="blog-excerpt">${blog.content.substring(0, 100)}...</p>
-            <div class="blog-meta">
-                <span>${date}</span>
-                <div class="blog-actions">
-                    <button class="action-btn" onclick="likeBlog('${blog._id || blog.id}')">
-                        <span>👍</span>
-                        <span>${blog.likes?.length || 0}</span>
-                    </button>
-                    <button class="action-btn">
-                        <span>💬</span>
-                        <span>${blog.comments?.length || 0}</span>
-                    </button>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="flex: 1;">
+                    <h3 class="blog-title">${blog.title}</h3>
+                    <p class="blog-excerpt">${blog.content.substring(0, 100)}...</p>
+                    <div class="blog-meta">
+                        <span>${date}</span>
+                        <div class="blog-actions">
+                            <button class="action-btn" onclick="likeBlog('${blog._id || blog.id}')">
+                                <span>👍</span>
+                                <span>${blog.likes?.length || 0}</span>
+                            </button>
+                            <button class="action-btn">
+                                <span>💬</span>
+                                <span>${blog.comments?.length || 0}</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
+                ${isBlogAuthor ? `
+                    <button class="action-btn" style="color: #ff4d4d; border-color: transparent; margin-left: 1rem;" 
+                            onclick="deleteBlog('${blog._id || blog.id}')">
+                        Delete
+                    </button>
+                ` : ''}
             </div>
         `;
         blogList.appendChild(blogCard);
@@ -924,16 +1048,55 @@ async function createBlog(event) {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOM Loaded - Initializing...');
+    
     loadTheme();
     checkAuth();
-    loadHomeBlogs();
+    
+    // Small delay to ensure DOM is fully ready
+    setTimeout(() => {
+        console.log('Setting up home page...');
+        
+        // Hide all pages first
+        document.querySelectorAll('.page').forEach(p => {
+            p.style.display = 'none';
+            p.classList.remove('active');
+        });
+        
+        // Show and activate home page
+        const homePage = document.getElementById('homePage');
+        if (homePage) {
+            homePage.style.display = 'block';
+            homePage.classList.add('active');
+            console.log('Home page displayed');
+        } else {
+            console.error('Home page element not found!');
+        }
+        
+        // Set home nav link as active
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.classList.remove('active');
+            if (link.getAttribute('data-page') === 'home') {
+                link.classList.add('active');
+            }
+        });
+        
+        // Load blogs
+        console.log('Loading blogs...');
+        loadHomeBlogs();
+    }, 100);
 });
 
 // Close modals when clicking outside
-document.querySelectorAll('.modal').forEach(modal => {
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) {
-            modal.classList.remove('active');
-        }
-    });
-});
+setTimeout(() => {
+    const modals = document.querySelectorAll('.modal');
+    if (modals.length > 0) {
+        modals.forEach(modal => {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                }
+            });
+        });
+    }
+}, 100);

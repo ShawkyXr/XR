@@ -1,5 +1,13 @@
-import { Schema, model } from 'mongoose';
-import { IComment, CommentModel } from './comment.model';
+import { Schema, Types, model } from 'mongoose';
+
+export interface IComment {
+    _id: Types.ObjectId;
+    blogId: string;
+    username: string;
+    content: string;
+    likes: string[];
+    createdAt?: Date;
+}
 
 export interface IBlog extends IComment {
     title: string;
