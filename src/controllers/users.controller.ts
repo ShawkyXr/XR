@@ -46,7 +46,7 @@ export const loginUser = async (req: Request, res: Response) => {
             return res.status(HTTP_STATUS.BAD_REQUEST).json({ error: ERROR_CODES.VALIDATION_ERROR, message : 'Email and password are required' });
         }
 
-        const existUser = await UserModel.findOne({ email });
+        const existUser = await UserModel.findOne({ email }).select('+password');
 
         const match = existUser ? await bcrypt.compare(password, existUser.password) : false;
 

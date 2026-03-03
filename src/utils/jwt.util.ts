@@ -16,7 +16,7 @@ export const verifyToken = (token: string): JwtPayload | null => {
     try {
         return jwt.verify(token, SECRET_KEY as string) as JwtPayload;
     } catch (error) {
-        // console.error('Token verification failed:', error);
+        console.error('Token verification failed:', error);
         return null;
     }
 }
