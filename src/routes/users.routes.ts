@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { authenticate } from "../middlewares/auth.middleware";
+import { validator, UserSchema, loginSchema } from "../middlewares/validator.middleware";
 import { getMyProfile,
     getUserProfile,
     loginUser,
@@ -9,10 +10,10 @@ import { getMyProfile,
 export const router = Router();
 
 router.route("/login")
-    .post(loginUser);
+    .post(validator(loginSchema), loginUser);
     
 router.route("/register")
-    .post(registerUser);
+    .post(validator(UserSchema), registerUser);
 
 router.route("/")
     .get(authenticate, getMyProfile);

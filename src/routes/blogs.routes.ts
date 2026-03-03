@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { authenticate } from '../middlewares/auth.middleware';
+import { validator, BlogSchema, CommentSchema } from '../middlewares/validator.middleware';
 import { getAllBlogs,
     getBlogbyId,
     likeBlog,
@@ -17,7 +18,7 @@ export const router = Router();
 
 router.route('/')
     .get(getAllBlogs)
-    .post(authenticate, createBlog);
+    .post(authenticate, validator(BlogSchema), createBlog);
 
 router.route('/user/:username')
     .get(getAllBlogsforUser);
@@ -25,14 +26,14 @@ router.route('/user/:username')
 router.route('/:blogId')
     .get(getBlogbyId)
     .post(authenticate, likeBlog)
-    .patch(authenticate, editBlog)
+    .patch(authenticate, validator(BlogSchema), editBlog)
     .delete(authenticate, deleteBlogbyId);
 
 router.route('/:blogId/like')
     .post(authenticate, likeBlog);
 
 router.route('/:blogId/comment')
-    .post(authenticate, addComment);
+    .post(authenticate, validator(CommentSchema), addComment);
 
 router.route('/:blogId/comment/:commentId')
     .post(authenticate, likeComment)
