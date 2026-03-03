@@ -9,6 +9,41 @@ let roomsMap = {};
 const API_BASE_URL = 'http://localhost:1234/api';
 
 let activeBlogId = null;
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const STRONG_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+
+function isNonEmpty(value) {
+    return typeof value === 'string' && value.trim().length > 0;
+}
+
+function isValidEmail(email) {
+    return EMAIL_REGEX.test(email.trim());
+}
+
+function isStrongPassword(password) {
+    return STRONG_PASSWORD_REGEX.test(password);
+}
+
+async function isUsernameUnique(username) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/profile/${encodeURIComponent(username)}`, {
+            method: 'GET',
+            headers: { 'Content-Type': 'application/json' }
+        });
+
+        if (!response.ok) {
+            return true;
+        }
+
+        const responseData = await response.json();
+        return !responseData?.data;
+    } catch (error) {
+        console.error('Username uniqueness check failed:', error);
+        return true;
+    }
+}
+
 // Check authentication status on load
 function checkAuth() {
     const token = localStorage.getItem('authToken');
@@ -78,9 +113,19 @@ function togglePasswordVisibility(inputId, button) {
 async function handleLogin(event) {
     event.preventDefault();
 
-    const email = document.getElementById('loginEmail').value;
+    const email = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
     const rememberMe = document.getElementById('rememberMe').checked;
+
+    if (!isNonEmpty(email) || !isNonEmpty(password)) {
+        showPopupAlert('Email and password are required.', '⚠️', 3500);
+        return;
+    }
+
+    if (!isValidEmail(email)) {
+        showPopupAlert('Please enter a valid email address.', '⚠️', 3500);
+        return;
+    }
 
     try {
         // Connect to your specific route: POST /api/profile/login
@@ -131,11 +176,38 @@ async function handleRegister(event) {
     event.preventDefault();
 
     // Gather data from form
-    const firstName = document.getElementById('firstName').value;
-    const lastName = document.getElementById('lastName').value;
-    const username = document.getElementById('registerUsername').value;
-    const email = document.getElementById('registerEmail').value;
+    const firstName = document.getElementById('firstName').value.trim();
+    const lastName = document.getElementById('lastName').value.trim();
+    const username = document.getElementById('registerUsername').value.trim();
+    const email = document.getElementById('registerEmail').value.trim();
     const password = document.getElementById('registerPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+
+    if (!isNonEmpty(firstName) || !isNonEmpty(lastName) || !isNonEmpty(username) || !isNonEmpty(email) || !isNonEmpty(password) || !isNonEmpty(confirmPassword)) {
+        showPopupAlert('All registration fields are required.', '⚠️', 4000);
+        return;
+    }
+
+    if (!isValidEmail(email)) {
+        showPopupAlert('Please enter a valid email address.', '⚠️', 3500);
+        return;
+    }
+
+    if (!isStrongPassword(password)) {
+        showPopupAlert('Password must be at least 8 chars and include uppercase, lowercase, number, and special character.', '⚠️', 5500);
+        return;
+    }
+
+    if (password !== confirmPassword) {
+        showPopupAlert('Password and confirm password do not match.', '⚠️', 3500);
+        return;
+    }
+
+    const usernameIsUnique = await isUsernameUnique(username);
+    if (!usernameIsUnique) {
+        showPopupAlert('Username already exists. Please choose another one.', '⚠️', 4000);
+        return;
+    }
 
     try {
         // Connect to your specific route: POST /api/profile/register
@@ -280,6 +352,10 @@ async function apiRequest(endpoint, method = 'GET', data = null) {
             return responseData;
         } catch (error) {
             console.error('API Error:', error);
+            if (error.message === 'Invalid or Expired token'){
+                logout();
+                showAuthAlert("Session expired. Please log in again.");
+            }
             // Only alert for non-GET requests to avoid annoying popups on page load
             if (method !== 'GET') {
                 alert("Cannot connect to backend: " + error.message);
@@ -381,6 +457,7 @@ function searchBlogs() {
 
 // Like Blog
 async function likeBlog(blogId) {
+    checkAuth();
     if (!isAuthenticated) {
         return showAuthAlert("Login to like this blog!");
     }
@@ -454,7 +531,10 @@ async function submitComment() {
     }
     
     const content = document.getElementById('commentInput').value.trim();
-    if (!content) return;
+    if (!content) {
+        showPopupAlert('Comment content cannot be empty.', '⚠️', 3000);
+        return;
+    }
 
     const response = await apiRequest(`/blog/${activeBlogId}/comment`, 'POST', { content });
     if (response) {
@@ -648,23 +728,35 @@ function searchRooms() {
     }, 300);
 }
 
+// Updated loadRooms to calculate participants and pass to delete function
 async function loadRooms() {
     const roomsGrid = document.getElementById('roomsGrid');
     roomsGrid.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading rooms...</p></div>';
 
     const response = await apiRequest('/rooms');
     const rooms = response.data || [];
-    
+
     roomsGrid.innerHTML = '';
-    
+
     if (rooms.length === 0) {
         roomsGrid.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 3rem;">No rooms available. Create one to get started!</p>';
         return;
     }
-    
+
     rooms.forEach(room => {
+        console.log('Processing room:', room);
         const description = room.description || 'No description provided.';
         const isPrivate = room.type === 'private';
+        
+        // Determine active participant count
+        // Handles cases where backend sends an array or a direct number
+        let activeCount = 0;
+        if (Array.isArray(room.participants)) {
+            activeCount = room.participants.length;
+        } else if (typeof room.participants === 'number') {
+            activeCount = room.participants;
+        }
+
         const roomCard = document.createElement('div');
         roomCard.className = 'room-card';
         roomCard.innerHTML = `
@@ -677,13 +769,44 @@ async function loadRooms() {
             <p class="room-description">${description}</p>
             <div class="room-meta">
                 <div class="room-participants">
-                    <!--  <span class="participant-count">👥 ${room.participants || 0} online</span> -->
+                     <span class="participant-count">👥 ${activeCount} online</span>
                 </div>
                 <button class="join-btn" onclick="joinRoom('${room._id}', '${room.name}')">${isPrivate ? 'Join with Code' : 'Join'}</button>
             </div>
         `;
         roomsGrid.appendChild(roomCard);
     });
+}
+
+// Delete room from chat interface
+async function deleteRoomFromChat() {
+    if (!currentRoom) return;
+    
+    await deleteRoom(currentRoom.id, currentRoom.name, 0);
+}
+
+// Updated deleteRoom to check for active users
+async function deleteRoom(roomId, roomName, activeCount) {
+    // 1. Check if there are active users
+    if (activeCount > 0) {
+        showPopupAlert(`Cannot delete "${roomName}" while ${activeCount} user(s) are active.`, '🚫', 4000);
+        return;
+    }
+
+    // 2. Proceed with deletion confirmation
+    if (!confirm(`Are you sure you want to delete the room "${roomName}"?`)) return;
+
+    const response = await apiRequest(`/rooms/${roomId}`, 'DELETE');
+    
+    if (response) {
+        showPopupAlert('Room deleted successfully', '✅', 3000);
+        
+        // If user is currently in the room being deleted, leave it
+        if (currentRoom && currentRoom.id === roomId) {
+            leaveRoomWithoutNavigating();
+            navigateTo('rooms');
+        }
+    }
 }
 // Delete Blog
 async function deleteBlog(blogId) {
@@ -741,9 +864,15 @@ function selectRoomType(type) {
 // Create Room
 async function createRoom(event) {
     event.preventDefault();
+    const roomName = document.getElementById('roomName').value.trim();
+    if (!isNonEmpty(roomName)) {
+        showPopupAlert('Room name cannot be empty.', '⚠️', 3000);
+        return;
+    }
+
     const roomType = document.getElementById('roomType').value;
     const roomData = {
-        name: document.getElementById('roomName').value,
+        name: roomName,
         description: document.getElementById('roomDescription').value,
         type: roomType
     };
@@ -788,29 +917,52 @@ async function joinRoom(roomId, roomName, skipAccessCheck = false) {
         return;
     }
 
-    currentRoom = { id: roomId, name: roomName, type: room.type, accessCode: room.accessCode };
+    currentRoom = { id: roomId, name: roomName, type: room.type, accessCode: room.accessCode, createdBy: room.createdBy };
     console.log(currentRoom);
     
     // Hide other pages, show chat
     document.querySelectorAll('.page').forEach(p => p.style.display = 'none');
     document.getElementById('chatPage').style.display = 'block';
     
-    // Update chat header with room name and access code for private rooms
+    // Check if current user is the room creator
+    const isRoomCreator = currentUser && (room.createdBy === currentUser.username);
+    
+    // Update chat header with room name, access code for private rooms, and delete button for creators
     const titleElement = document.getElementById('chatRoomTitle');
     if (room.type === 'private' && room.accessCode) {
         titleElement.innerHTML = `
-            <div>
-                <div style="display: flex; align-items: center; gap: 0.5rem;">
-                    <span>${roomName}</span>
-                    <span style="font-size: 1.2rem;">🔒</span>
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; width: 100%;">
+                <div>
+                    <div style="display: flex; align-items: center; gap: 0.5rem;">
+                        <span>${roomName}</span>
+                        <span style="font-size: 1.2rem;">🔒</span>
+                    </div>
+                    <div style="font-size: 0.85rem; font-weight: 400; color: var(--text-secondary); margin-top: 0.3rem;">
+                        Access Code: <span style="font-family: 'Space Mono', monospace; background: var(--bg-tertiary); padding: 0.2rem 0.6rem; border-radius: 6px; color: var(--accent-primary);">${room.accessCode}</span>
+                    </div>
                 </div>
-                <div style="font-size: 0.85rem; font-weight: 400; color: var(--text-secondary); margin-top: 0.3rem;">
-                    Access Code: <span style="font-family: 'Space Mono', monospace; background: var(--bg-tertiary); padding: 0.2rem 0.6rem; border-radius: 6px; color: var(--accent-primary);">${room.accessCode}</span>
-                </div>
+                ${isRoomCreator ? `
+                    <button class="action-btn" style="color: #ff4d4d; border-color: #ff4d4d; padding: 0.5rem 1rem; font-size: 0.85rem;" 
+                            onclick="deleteRoomFromChat()"
+                            title="Delete room">
+                        Delete Room
+                    </button>
+                ` : ''}
             </div>
         `;
     } else {
-        titleElement.textContent = roomName;
+        titleElement.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                <span>${roomName}</span>
+                ${isRoomCreator ? `
+                    <button class="action-btn" style="color: #ff4d4d; border-color: #ff4d4d; padding: 0.5rem 1rem; font-size: 0.85rem;" 
+                            onclick="deleteRoomFromChat()"
+                            title="Delete room">
+                        Delete Room
+                    </button>
+                ` : ''}
+            </div>
+        `;
     }
     
     // Clear chat messages when switching rooms
@@ -1033,9 +1185,17 @@ async function loadBlogs(username) {
 // Create Blog
 async function createBlog(event) {
     event.preventDefault();
+    const title = document.getElementById('blogTitle').value.trim();
+    const content = document.getElementById('blogContent').value.trim();
+
+    if (!isNonEmpty(title) || !isNonEmpty(content)) {
+        showPopupAlert('Blog title and content cannot be empty.', '⚠️', 3500);
+        return;
+    }
+
     const blogData = {
-        title: document.getElementById('blogTitle').value,
-        content: document.getElementById('blogContent').value
+        title,
+        content
     };
 
     await apiRequest('/blog', 'POST', blogData);
