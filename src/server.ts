@@ -9,6 +9,7 @@ import { router as usersRouters } from './routes/users.routes';
 import { router as blogsRouters } from './routes/blogs.routes';
 import { router as roomsRouters } from './routes/rooms.routes';
 import { initSocket } from './services/socket.service';
+import { errorHandler, notFoundHandler } from './middlewares/error.middleware';
 
 const app = express();
 app.use(cors());
@@ -19,6 +20,8 @@ const server = http.createServer(app);
 app.use('/api/profile', usersRouters);
 app.use('/api/blog', blogsRouters);
 app.use('/api/rooms', roomsRouters);
+app.use(notFoundHandler);
+app.use(errorHandler);
 
 initSocket(server);
 
