@@ -270,24 +270,46 @@
         <div id="profilePage" class="page" style="display: none;">
             <div class="profile-container">
                 <div class="profile-header">
-                    <div class="profile-avatar-large" id="profileAvatar">U</div>
+                    <div class="profile-avatar-wrapper" id="profileAvatarWrapper">
+                        <div class="profile-avatar-large" id="profileAvatar" title="Profile picture">
+                            U
+                        </div>
+                        <button
+                            type="button"
+                            class="profile-avatar-edit-btn"
+                            id="profileAvatarEditBtn"
+                            title="Edit profile picture"
+                            onclick="toggleProfilePictureMenu(event)"
+                        >
+                            ✏
+                        </button>
+                        <div class="profile-picture-menu" id="profilePictureMenu">
+                            <button type="button" class="profile-picture-menu-item" onclick="triggerProfilePictureUpload()">
+                                Upload New Profile Picture
+                            </button>
+                            <button type="button" class="profile-picture-menu-item" onclick="deleteProfilePicture()">
+                                Delete Profile Picture
+                            </button>
+                            <button
+                                type="button"
+                                class="profile-picture-menu-item"
+                                id="viewProfilePictureOption"
+                                onclick="viewOwnProfilePicture()"
+                            >
+                                View Profile Picture
+                            </button>
+                        </div>
+                        <input
+                            id="profilePictureInput"
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"
+                            style="display: none;"
+                            onchange="handleProfilePictureSelection(event)"
+                        >
+                    </div>
                     <div class="profile-info">
                         <h1 class="profile-name" id="profileName">User Name</h1>
                         <p class="profile-username" id="profileUsername">@username</p>
-                        <div class="profile-stats">
-                            <div class="stat-item">
-                                <div class="stat-value" id="roomsCreated">0</div>
-                                <div class="stat-label">Rooms Created</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-value" id="blogsPublished">0</div>
-                                <div class="stat-label">Blogs Published</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-value" id="totalConnections">0</div>
-                                <div class="stat-label">Connections</div>
-                            </div>
-                        </div>
                     </div>
                 </div>
 
@@ -374,6 +396,12 @@
                 </div>
                 <button id="accessCodeSubmit" class="form-submit" style="margin-top: 1.5rem;">Join Room</button>
             </div>
+        </div>
+    </div>
+
+    <div class="image-viewer-modal" id="profilePictureViewer" onclick="closeProfilePictureViewer(event)">
+        <div class="image-viewer-container">
+            <img id="profilePictureViewerImage" class="image-viewer-image" alt="Profile picture preview">
         </div>
     </div>
 

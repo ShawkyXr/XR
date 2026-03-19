@@ -12,6 +12,64 @@ let activeBlogId = null;
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const STRONG_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+const PROFILE_PICTURE_ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const PROFILE_PICTURE_ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
+
+function getServerBaseUrl() {
+    return API_BASE_URL.replace('/api', '');
+}
+
+function getAbsoluteMediaUrl(path) {
+    if (!isNonEmpty(path)) {
+        return null;
+    }
+
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+        return path;
+    }
+
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    return `${getServerBaseUrl()}${normalizedPath}`;
+}
+
+function getUserInitials(user) {
+    const firstInitial = user?.firstName?.[0] || user?.username?.[0] || 'U';
+    const lastInitial = user?.lastName?.[0] || user?.username?.[1] || '';
+    return `${firstInitial}${lastInitial}`.toUpperCase();
+}
+
+function getProfilePictureFromUser(user) {
+    return user?.profilePictureUrl || null;
+}
+
+function escapeHtml(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function createAvatarMarkup(user, extraClass = '') {
+    const profilePictureUrl = getProfilePictureFromUser(user);
+    const absoluteUrl = getAbsoluteMediaUrl(profilePictureUrl);
+    const baseClass = extraClass ? `blog-author-avatar ${extraClass}` : 'blog-author-avatar';
+    const className = absoluteUrl ? `${baseClass} has-image` : baseClass;
+    const safeInitials = escapeHtml(getUserInitials(user));
+
+    if (!absoluteUrl) {
+        return `<div class="${className}">${safeInitials}</div>`;
+    }
+
+    const encodedUrl = encodeURIComponent(profilePictureUrl);
+    const safeName = escapeHtml(user?.username || 'user');
+    return `
+        <div class="${className} clickable" onclick="event.stopPropagation(); openProfilePictureViewerFromEncoded('${encodedUrl}')">
+            <img src="${escapeHtml(absoluteUrl)}" alt="${safeName} profile picture">
+        </div>
+    `;
+}
 
 function isNonEmpty(value) {
     return typeof value === 'string' && value.trim().length > 0;
@@ -135,12 +193,16 @@ async function handleLogin(event) {
             body: JSON.stringify({ email, password, rememberMe })
         });
 
-
         const responseData = await response.json();
-        const userData = responseData.data;
         
         if (!response.ok) {
             throw new Error(responseData.message || 'Login failed');
+        }
+
+        const userData = responseData.data;
+        
+        if (!userData || !userData.token) {
+            throw new Error('Invalid response from server');
         }
 
         localStorage.setItem('authToken', userData.token);
@@ -164,13 +226,13 @@ async function handleLogin(event) {
         
         // More specific error messages
         if (error.message.includes('fetch')) {
-            alert('Cannot connect to server. Make sure the backend is running on port 1234.');
+            showPopupAlert('Cannot connect to server. Make sure the backend is running on port 1234.', '⚠️', 4000);
         } else {
-            alert('Login failed: ' + error.message);
+            showPopupAlert('Login failed: ' + error.message, '⚠️', 4000);
         }
     }
-
 }
+
 
 async function handleRegister(event) {
     event.preventDefault();
@@ -402,12 +464,17 @@ async function loadHomeBlogs() {
         };
 
         const username = blog.username || 'Unknown';
-        const authorInitials = `${username[0]}${(username[1] || '')}`;
+        const authorUser = {
+            username,
+            firstName: blog.user?.firstName,
+            lastName: blog.user?.lastName,
+            profilePictureUrl: blog.profilePictureUrl || blog.user?.profilePictureUrl || null
+        };
         const blogDate = blog.createdAt ? new Date(blog.createdAt).toLocaleDateString() : 'Unknown date';
         
         blogCard.innerHTML = `
             <div class="home-blog-header">
-                <div class="blog-author-avatar">${authorInitials}</div>
+                ${createAvatarMarkup(authorUser)}
                 <div class="blog-author-info">
                     <div class="blog-author-name">${username}</div>
                     <div class="blog-date">${blogDate}</div>
@@ -659,8 +726,13 @@ async function viewBlog(blogId) {
 
     const firstName = user?.firstName || 'User';
     const lastName = user?.lastName || '';
-    const authorInitials = `${firstName[0]}${(lastName[0] || '')}`;
     const username = user?.username || 'unknown';
+    const authorUser = {
+        username,
+        firstName,
+        lastName,
+        profilePictureUrl: user?.profilePictureUrl || null
+    };
     const blogDate = new Date(blog.createdAt).toLocaleDateString('en-GB', { 
         day: '2-digit', 
         month: '2-digit', 
@@ -677,9 +749,7 @@ async function viewBlog(blogId) {
         <div class="auth-card" style="max-width: 100%; border-radius: 16px; padding: 2rem;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 1.5rem;">
                 <div style="display: flex; align-items: center; gap: 1rem;">
-                    <div class="blog-author-avatar" style="width: 50px; height: 50px; font-size: 1.2rem;">
-                        ${authorInitials}
-                    </div>
+                    ${createAvatarMarkup(authorUser, 'blog-view-avatar')}
                     <div>
                         <div style="font-weight: 700; color: var(--text-primary);">${firstName} ${lastName}</div>
                         <div style="font-size: 0.75rem; color: var(--text-tertiary);">@${username}</div>
@@ -1110,16 +1180,226 @@ function updateParticipants(participants) {
     });
 }
 
+function syncCurrentUserWithProfile(profileData) {
+    if (!profileData) {
+        return;
+    }
+
+    if (!currentUser) {
+        currentUser = profileData;
+    } else {
+        currentUser = { ...currentUser, ...profileData };
+    }
+
+    localStorage.setItem('userData', JSON.stringify(currentUser));
+}
+
+function renderProfileAvatar(user) {
+    const avatarElement = document.getElementById('profileAvatar');
+    if (!avatarElement) {
+        return;
+    }
+
+    const profilePictureUrl = getProfilePictureFromUser(user);
+    const absoluteProfilePictureUrl = getAbsoluteMediaUrl(profilePictureUrl);
+    const viewOption = document.getElementById('viewProfilePictureOption');
+
+    avatarElement.classList.toggle('has-image', Boolean(absoluteProfilePictureUrl));
+
+    if (absoluteProfilePictureUrl) {
+        const safeUrl = escapeHtml(absoluteProfilePictureUrl);
+        console.log('Rendering profile picture with URL:', profilePictureUrl);
+        avatarElement.innerHTML = `<img src="${profilePictureUrl}" alt="Profile picture">`;
+    } else {
+        avatarElement.textContent = getUserInitials(user);
+    }
+
+    if (viewOption) {
+        viewOption.style.display = absoluteProfilePictureUrl ? 'block' : 'none';
+    }
+}
+
+function closeProfilePictureMenu() {
+    const menu = document.getElementById('profilePictureMenu');
+    const wrapper = document.getElementById('profileAvatarWrapper');
+    if (menu) {
+        menu.classList.remove('active');
+    }
+    if (wrapper) {
+        wrapper.classList.remove('menu-open');
+    }
+}
+
+function toggleProfilePictureMenu(event) {
+    event.stopPropagation();
+    const menu = document.getElementById('profilePictureMenu');
+    const wrapper = document.getElementById('profileAvatarWrapper');
+    if (!menu || !wrapper) {
+        return;
+    }
+
+    const isActive = menu.classList.toggle('active');
+    wrapper.classList.toggle('menu-open', isActive);
+}
+
+function triggerProfilePictureUpload() {
+    closeProfilePictureMenu();
+    const input = document.getElementById('profilePictureInput');
+    if (input) {
+        input.click();
+    }
+}
+
+function isAllowedProfilePictureFile(file) {
+    if (!file) {
+        return false;
+    }
+
+    if (PROFILE_PICTURE_ALLOWED_MIME_TYPES.includes(file.type)) {
+        return true;
+    }
+
+    const extension = file.name.split('.').pop()?.toLowerCase();
+    return Boolean(extension && PROFILE_PICTURE_ALLOWED_EXTENSIONS.includes(extension));
+}
+
+async function handleProfilePictureSelection(event) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+
+    if (!file) {
+        return;
+    }
+
+    if (!isAllowedProfilePictureFile(file)) {
+        showPopupAlert('Only JPG, PNG, and WEBP images are allowed.', '⚠️', 3500);
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('avatar', file);
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/profile/profile-picture`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            },
+            body: formData
+        });
+
+        const responseData = await response.json();
+
+        if (!response.ok) {
+            throw new Error(responseData.message || 'Failed to upload profile picture');
+        }
+
+        syncCurrentUserWithProfile(responseData.data);
+        renderProfileAvatar(currentUser);
+        showPopupAlert('Profile picture updated successfully.', '✅', 2800);
+        console.log('Profile picture upload response:', responseData);
+    } catch (error) {
+        console.error('Profile picture upload failed:', error);
+        showPopupAlert(error.message || 'Failed to upload profile picture.', '⚠️', 3500);
+    }
+}
+
+async function deleteProfilePicture() {
+    closeProfilePictureMenu();
+
+    if (!currentUser?.profilePictureUrl) {
+        showPopupAlert('No profile picture to delete.', '⚠️', 2500);
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/profile/profile-picture`, {
+            method: 'DELETE',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+            }
+        });
+
+        const responseData = await response.json();
+
+        if (!response.ok) {
+            throw new Error(responseData.message || 'Failed to delete profile picture');
+        }
+
+        syncCurrentUserWithProfile(responseData.data);
+        currentUser.profilePictureUrl = null;
+        localStorage.setItem('userData', JSON.stringify(currentUser));
+        renderProfileAvatar(currentUser);
+        showPopupAlert('Profile picture deleted.', '✅', 2500);
+    } catch (error) {
+        console.error('Profile picture delete failed:', error);
+        showPopupAlert(error.message || 'Failed to delete profile picture.', '⚠️', 3500);
+    }
+}
+
+function openProfilePictureViewerFromEncoded(encodedUrl) {
+    const decodedUrl = decodeURIComponent(encodedUrl);
+    openProfilePictureViewer(decodedUrl);
+}
+
+function openProfilePictureViewer(profilePictureUrl) {
+    const absoluteUrl = getAbsoluteMediaUrl(profilePictureUrl);
+    if (!absoluteUrl) {
+        return;
+    }
+
+    const modal = document.getElementById('profilePictureViewer');
+    const image = document.getElementById('profilePictureViewerImage');
+
+    if (!modal || !image) {
+        return;
+    }
+
+    image.src = profilePictureUrl;
+    modal.classList.add('active');
+}
+
+function closeProfilePictureViewer(event) {
+    if (event && event.target !== event.currentTarget) {
+        return;
+    }
+
+    const modal = document.getElementById('profilePictureViewer');
+    const image = document.getElementById('profilePictureViewerImage');
+
+    if (modal) {
+        modal.classList.remove('active');
+    }
+
+    if (image) {
+        image.src = '';
+    }
+}
+
+function viewOwnProfilePicture() {
+    closeProfilePictureMenu();
+
+    const profilePictureUrl = getProfilePictureFromUser(currentUser);
+    if (!profilePictureUrl) {
+        return;
+    }
+
+    openProfilePictureViewer(profilePictureUrl);
+}
+
 // Load Profile
 async function loadProfile() {
     const profile = await apiRequest('/profile');
 
+    if (!profile?.data) {
+        return;
+    }
+
+    syncCurrentUserWithProfile(profile.data);
+
     document.getElementById('profileName').textContent = `${profile.data.firstName} ${profile.data.lastName}`;
     document.getElementById('profileUsername').textContent = `@${profile.data.username}`;
-    document.getElementById('profileAvatar').textContent = `${profile.data.firstName[0]}${profile.data.lastName[0]}`;
-    document.getElementById('roomsCreated').textContent = profile.data.roomsCreated;
-    document.getElementById('blogsPublished').textContent = profile.data.blogsPublished;
-    document.getElementById('totalConnections').textContent = profile.data.totalConnections;
+    renderProfileAvatar(profile.data);
 
     loadBlogs(profile.data.username);
 }
@@ -1212,6 +1492,20 @@ document.addEventListener('DOMContentLoaded', () => {
     
     loadTheme();
     checkAuth();
+
+    document.addEventListener('click', (event) => {
+        const wrapper = document.getElementById('profileAvatarWrapper');
+        if (wrapper && !wrapper.contains(event.target)) {
+            closeProfilePictureMenu();
+        }
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+            closeProfilePictureMenu();
+            closeProfilePictureViewer();
+        }
+    });
     
     // Small delay to ensure DOM is fully ready
     setTimeout(() => {

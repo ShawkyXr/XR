@@ -107,3 +107,57 @@ export const registerUser = async (req: Request, res: Response) => {
         res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: ERROR_CODES.INTERNAL_ERROR, message: error.message || 'Internal Server Error' });
     }
 }
+
+export const uploadProfilePicture = async (req: Request, res: Response) => {
+    try {
+        const username = req.user?.username;
+
+        if (!username) {
+            return res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: ERROR_CODES.UNAUTHORIZED, message : 'Unauthorized User' });
+        }
+
+        if (!req.file) {
+            return res.status(HTTP_STATUS.BAD_REQUEST).json({ error: ERROR_CODES.VALIDATION_ERROR, message : 'No file uploaded' });
+        }
+
+        const profilePictureUrl = `../src/uploads/${req.file.filename}`;
+
+        const updatedUser = await UserModel.findOneAndUpdate(
+            { username },
+            { profilePictureUrl },
+            { new: true, select: '-password' }
+        );
+        
+        if (!updatedUser) {
+            return res.status(HTTP_STATUS.NOT_FOUND).json({ error: ERROR_CODES.NOT_FOUND, message : 'User not found' });
+        }
+
+        res.status(HTTP_STATUS.OK).json({ message: 'Profile picture uploaded successfully', data: updatedUser });
+    } catch (error: any) {
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: ERROR_CODES.INTERNAL_ERROR, message: error.message || 'Internal Server Error' });
+    }
+}
+
+export const deleteProfilePicture = async (req: Request, res: Response) => {
+    try {
+        const username = req.user?.username;
+
+        if (!username) {
+            return res.status(HTTP_STATUS.UNAUTHORIZED).json({ error: ERROR_CODES.UNAUTHORIZED, message : 'Unauthorized User' });
+        }
+
+        const updatedUser = await UserModel.findOneAndUpdate(
+            { username },
+            { profilePictureUrl: null },
+            { new: true, select: '-password' }
+        );
+        
+        if (!updatedUser) {
+            return res.status(HTTP_STATUS.NOT_FOUND).json({ error: ERROR_CODES.NOT_FOUND, message : 'User not found' });
+        }
+
+        res.status(HTTP_STATUS.OK).json({ message: 'Profile picture deleted successfully', data: updatedUser });
+    } catch (error: any) {
+        res.status(HTTP_STATUS.INTERNAL_SERVER_ERROR).json({ error: ERROR_CODES.INTERNAL_ERROR, message: error.message || 'Internal Server Error' });
+    }
+}

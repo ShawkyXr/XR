@@ -11,6 +11,7 @@ export interface IUser {
     roomsCreated: string[];
     socketId?: string;
     createdAt?: Date;
+    profilePictureUrl?: string;
 }
 
 const UserSchema = new Schema<IUser>({
@@ -22,7 +23,8 @@ const UserSchema = new Schema<IUser>({
     token: { type: String},
     blogs: [{ type: String }],
     roomsCreated: [{ type: String, default: null }],
-    createdAt: { type: Date, default: Date.now }
+    createdAt: { type: Date, default: Date.now },
+    profilePictureUrl: { type: String, default: null }
 });
 
 const UserModel = model<IUser>("User", UserSchema);
