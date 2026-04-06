@@ -23,6 +23,13 @@ export const BlogSchema = z.object({
 export const RoomSchema = z.object({
     name: z.string().min(1, 'Room name is required'),
     description: z.string().optional(),
+    type: z.enum(['public', 'private'], 'Type must be either public or private'),
+    accessCode: z.string().optional(),
+}).refine((data) => {
+    if (data.type === 'private') {
+        return !!data.accessCode;
+    }
+    return true;
 });
 
 export const CommentSchema = z.object({

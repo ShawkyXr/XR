@@ -14,6 +14,16 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const STRONG_PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
 const PROFILE_PICTURE_ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const PROFILE_PICTURE_ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
+const HOME_BLOGS_PER_PAGE = 9;
+const ROOMS_PER_PAGE = 12;
+
+let allHomeBlogs = [];
+let filteredHomeBlogs = [];
+let homeCurrentPage = 1;
+
+let allRooms = [];
+let filteredRooms = [];
+let roomsCurrentPage = 1;
 
 function getServerBaseUrl() {
     return API_BASE_URL.replace('/api', '');
@@ -426,35 +436,100 @@ async function apiRequest(endpoint, method = 'GET', data = null) {
         }
 }
 
+function renderPagination(containerId, currentPage, totalPages, pageHandlerName) {
+    const paginationElement = document.getElementById(containerId);
 
-// Load Blogs on Home Page
-async function loadHomeBlogs() {
-    console.log('loadHomeBlogs called');
+    if (!paginationElement) {
+        return;
+    }
+
+    if (totalPages <= 1) {
+        paginationElement.innerHTML = '';
+        paginationElement.classList.add('is-hidden');
+        return;
+    }
+
+    paginationElement.classList.remove('is-hidden');
+
+    let paginationMarkup = `
+        <button
+            type="button"
+            class="pagination-btn"
+            aria-label="Previous page"
+            onclick="${pageHandlerName}(${currentPage - 1})"
+            ${currentPage === 1 ? 'disabled' : ''}
+        >
+            &larr;
+        </button>
+    `;
+
+    for (let pageNumber = 1; pageNumber <= totalPages; pageNumber += 1) {
+        paginationMarkup += `
+            <button
+                type="button"
+                class="pagination-number ${pageNumber === currentPage ? 'active' : ''}"
+                aria-label="Go to page ${pageNumber}"
+                aria-current="${pageNumber === currentPage ? 'page' : 'false'}"
+                onclick="${pageHandlerName}(${pageNumber})"
+            >
+                ${pageNumber}
+            </button>
+        `;
+    }
+
+    paginationMarkup += `
+        <button
+            type="button"
+            class="pagination-btn"
+            aria-label="Next page"
+            onclick="${pageHandlerName}(${currentPage + 1})"
+            ${currentPage === totalPages ? 'disabled' : ''}
+        >
+            &rarr;
+        </button>
+    `;
+
+    paginationElement.innerHTML = paginationMarkup;
+}
+
+function applyHomeBlogFilter() {
+    const searchInput = document.getElementById('blogSearch');
+    const searchTerm = (searchInput?.value || '').trim().toLowerCase();
+
+    filteredHomeBlogs = allHomeBlogs.filter((blog) => {
+        const title = String(blog.title || '').toLowerCase();
+        const excerpt = String(blog.content || '').toLowerCase();
+        const author = String(blog.username || blog.user?.username || '').toLowerCase();
+        return title.includes(searchTerm) || excerpt.includes(searchTerm) || author.includes(searchTerm);
+    });
+}
+
+function renderHomeBlogsPage(page = 1) {
     const blogsGrid = document.getElementById('homeBlogsGrid');
-    
+
     if (!blogsGrid) {
-        console.error('homeBlogsGrid element not found!');
         return;
     }
-    
-    console.log('Showing loading spinner...');
-    blogsGrid.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading blogs...</p></div>';
 
-    const blogsReq = await apiRequest('/blog');
-    
-    const blogs = blogsReq.data || [];
-    
-    
+    const totalPages = Math.max(1, Math.ceil(filteredHomeBlogs.length / HOME_BLOGS_PER_PAGE));
+    homeCurrentPage = Math.min(Math.max(page, 1), totalPages);
+
+    const startIndex = (homeCurrentPage - 1) * HOME_BLOGS_PER_PAGE;
+    const endIndex = startIndex + HOME_BLOGS_PER_PAGE;
+    const blogsToRender = filteredHomeBlogs.slice(startIndex, endIndex);
+
     blogsGrid.innerHTML = '';
-    if (blogs.length === 0) {
+
+    if (filteredHomeBlogs.length === 0) {
         blogsGrid.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 3rem;">No blogs found.</p>';
+        renderPagination('homePagination', 1, 0, 'goToHomeBlogsPage');
         return;
     }
 
-    blogs.forEach(blog => {
+    blogsToRender.forEach(blog => {
         const blogCard = document.createElement('div');
         blogCard.className = 'home-blog-card';
-        
+
         // Open blog when clicking anywhere on the card
         blogCard.onclick = (e) => {
             // Prevent opening the blog if the user clicked a button (like or read more)
@@ -471,7 +546,7 @@ async function loadHomeBlogs() {
             profilePictureUrl: blog.profilePictureUrl || blog.user?.profilePictureUrl || null
         };
         const blogDate = blog.createdAt ? new Date(blog.createdAt).toLocaleDateString() : 'Unknown date';
-        
+
         blogCard.innerHTML = `
             <div class="home-blog-header">
                 ${createAvatarMarkup(authorUser)}
@@ -498,6 +573,33 @@ async function loadHomeBlogs() {
         `;
         blogsGrid.appendChild(blogCard);
     });
+
+    renderPagination('homePagination', homeCurrentPage, totalPages, 'goToHomeBlogsPage');
+}
+
+function goToHomeBlogsPage(page) {
+    renderHomeBlogsPage(page);
+}
+
+
+// Load Blogs on Home Page
+async function loadHomeBlogs() {
+    console.log('loadHomeBlogs called');
+    const blogsGrid = document.getElementById('homeBlogsGrid');
+    
+    if (!blogsGrid) {
+        console.error('homeBlogsGrid element not found!');
+        return;
+    }
+    
+    console.log('Showing loading spinner...');
+    blogsGrid.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading blogs...</p></div>';
+
+    const blogsReq = await apiRequest('/blog');
+    
+    allHomeBlogs = blogsReq.data || [];
+    applyHomeBlogFilter();
+    renderHomeBlogsPage(1);
 }
 
 // Search Blogs
@@ -505,20 +607,8 @@ let blogSearchTimeout;
 function searchBlogs() {
     clearTimeout(blogSearchTimeout);
     blogSearchTimeout = setTimeout(() => {
-        const searchTerm = document.getElementById('blogSearch').value.toLowerCase();
-        const blogCards = document.querySelectorAll('.home-blog-card');
-        
-        blogCards.forEach(card => {
-            const title = card.querySelector('.home-blog-title').textContent.toLowerCase();
-            const excerpt = card.querySelector('.home-blog-excerpt').textContent.toLowerCase();
-            const author = card.querySelector('.blog-author-name').textContent.toLowerCase();
-            
-            if (title.includes(searchTerm) || excerpt.includes(searchTerm) || author.includes(searchTerm)) {
-                card.style.display = 'flex';
-            } else {
-                card.style.display = 'none';
-            }
-        });
+        applyHomeBlogFilter();
+        renderHomeBlogsPage(1);
     }, 300);
 }
 
@@ -782,42 +872,49 @@ let roomSearchTimeout;
 function searchRooms() {
     clearTimeout(roomSearchTimeout);
     roomSearchTimeout = setTimeout(() => {
-        const searchTerm = document.getElementById('roomSearch').value.toLowerCase();
-        const roomCards = document.querySelectorAll('.room-card');
-        
-        roomCards.forEach(card => {
-            const title = card.querySelector('.room-title').textContent.toLowerCase();
-            const description = card.querySelector('.room-description').textContent.toLowerCase();
-            
-            if (title.includes(searchTerm) || description.includes(searchTerm)) {
-                card.style.display = 'block';
-            } else {
-                card.style.display = 'none';
-            }
-        });
+        applyRoomsFilter();
+        renderRoomsPage(1);
     }, 300);
 }
 
-// Updated loadRooms to calculate participants and pass to delete function
-async function loadRooms() {
+function applyRoomsFilter() {
+    const searchInput = document.getElementById('roomSearch');
+    const searchTerm = (searchInput?.value || '').trim().toLowerCase();
+
+    filteredRooms = allRooms.filter((room) => {
+        const roomName = String(room.name || '').toLowerCase();
+        const roomDescription = String(room.description || '').toLowerCase();
+        return roomName.includes(searchTerm) || roomDescription.includes(searchTerm);
+    });
+}
+
+function renderRoomsPage(page = 1) {
     const roomsGrid = document.getElementById('roomsGrid');
-    roomsGrid.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading rooms...</p></div>';
 
-    const response = await apiRequest('/rooms');
-    const rooms = response.data || [];
-
-    roomsGrid.innerHTML = '';
-
-    if (rooms.length === 0) {
-        roomsGrid.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 3rem;">No rooms available. Create one to get started!</p>';
+    if (!roomsGrid) {
         return;
     }
 
-    rooms.forEach(room => {
+    const totalPages = Math.max(1, Math.ceil(filteredRooms.length / ROOMS_PER_PAGE));
+    roomsCurrentPage = Math.min(Math.max(page, 1), totalPages);
+
+    const startIndex = (roomsCurrentPage - 1) * ROOMS_PER_PAGE;
+    const endIndex = startIndex + ROOMS_PER_PAGE;
+    const roomsToRender = filteredRooms.slice(startIndex, endIndex);
+
+    roomsGrid.innerHTML = '';
+
+    if (filteredRooms.length === 0) {
+        roomsGrid.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 3rem;">No rooms available. Create one to get started!</p>';
+        renderPagination('roomsPagination', 1, 0, 'goToRoomsPage');
+        return;
+    }
+
+    roomsToRender.forEach(room => {
         console.log('Processing room:', room);
         const description = room.description || 'No description provided.';
         const isPrivate = room.type === 'private';
-        
+
         // Determine active participant count
         // Handles cases where backend sends an array or a direct number
         let activeCount = 0;
@@ -839,13 +936,30 @@ async function loadRooms() {
             <p class="room-description">${description}</p>
             <div class="room-meta">
                 <div class="room-participants">
-                     <span class="participant-count">👥 ${activeCount} online</span>
+                        <span class="participant-count">👥 ${activeCount} online</span>
                 </div>
                 <button class="join-btn" onclick="joinRoom('${room._id}', '${room.name}')">${isPrivate ? 'Join with Code' : 'Join'}</button>
             </div>
         `;
         roomsGrid.appendChild(roomCard);
     });
+
+    renderPagination('roomsPagination', roomsCurrentPage, totalPages, 'goToRoomsPage');
+}
+
+function goToRoomsPage(page) {
+    renderRoomsPage(page);
+}
+
+// Updated loadRooms to calculate participants and pass to delete function
+async function loadRooms() {
+    const roomsGrid = document.getElementById('roomsGrid');
+    roomsGrid.innerHTML = '<div class="loading"><div class="spinner"></div><p>Loading rooms...</p></div>';
+
+    const response = await apiRequest('/rooms');
+    allRooms = response.data || [];
+    applyRoomsFilter();
+    renderRoomsPage(1);
 }
 
 // Delete room from chat interface
@@ -892,6 +1006,15 @@ function openCreateRoomModal() {
         showLoginPage();
         return;
     }
+
+    initializeRoomTypeToggle();
+    selectRoomType('public');
+
+    const createRoomForm = document.querySelector('#createRoomModal form');
+    if (createRoomForm) {
+        createRoomForm.reset();
+    }
+
     document.getElementById('createRoomModal').classList.add('active');
 }
 
@@ -908,9 +1031,32 @@ function closeModal(modalId) {
     document.getElementById(modalId).classList.remove('active');
 }
 
+function initializeRoomTypeToggle() {
+    const toggleOptions = document.querySelectorAll('#createRoomModal .toggle-option');
+
+    toggleOptions.forEach((option) => {
+        if (option.dataset.toggleBound === 'true') {
+            return;
+        }
+
+        option.addEventListener('click', () => {
+            const type = option.getAttribute('data-type');
+            if (type) {
+                selectRoomType(type);
+            }
+        });
+
+        option.dataset.toggleBound = 'true';
+    });
+}
+
 function selectRoomType(type) {
     selectedRoomType = type;
-    document.getElementById('roomType').value = type;
+    const roomTypeInput = document.getElementById('roomType');
+    if (roomTypeInput) {
+        roomTypeInput.value = type;
+    }
+
     document.querySelectorAll('#createRoomModal .toggle-option').forEach(opt => {
         opt.classList.remove('active');
         if (opt.getAttribute('data-type') === type) {
@@ -921,6 +1067,10 @@ function selectRoomType(type) {
     // Show/hide access code field based on room type
     const accessCodeGroup = document.getElementById('accessCodeGroup');
     const accessCodeInput = document.getElementById('roomAccessCode');
+    if (!accessCodeGroup || !accessCodeInput) {
+        return;
+    }
+
     if (type === 'private') {
         accessCodeGroup.style.display = 'flex';
         accessCodeInput.required = true;
@@ -940,7 +1090,23 @@ async function createRoom(event) {
         return;
     }
 
-    const roomType = document.getElementById('roomType').value;
+    const normalizedRoomName = roomName.toLowerCase().replace(/\s+/g, ' ').trim();
+    const roomsSnapshotResponse = await apiRequest('/rooms');
+    const latestRooms = roomsSnapshotResponse?.data || [];
+
+    const duplicateRoomExists = latestRooms.some((room) => {
+        const existingName = String(room.name || '').toLowerCase().replace(/\s+/g, ' ').trim();
+        return existingName === normalizedRoomName;
+    });
+
+    if (duplicateRoomExists) {
+        showPopupAlert('Room name already exists. Please choose a different name.', '⚠️', 4000);
+        return;
+    }
+
+    allRooms = latestRooms;
+
+    const roomType = document.getElementById('roomType').value || 'public';
     const roomData = {
         name: roomName,
         description: document.getElementById('roomDescription').value,
@@ -1492,6 +1658,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     loadTheme();
     checkAuth();
+    initializeRoomTypeToggle();
+    selectRoomType('public');
 
     document.addEventListener('click', (event) => {
         const wrapper = document.getElementById('profileAvatarWrapper');
