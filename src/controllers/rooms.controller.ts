@@ -5,7 +5,14 @@ import { HTTP_STATUS, ERROR_CODES } from '../config/constants';
 
 export const getAllRooms = async (req: Request, res: Response) => {
     try{
-        const rooms: IRoom[] = await RoomModel.find().select('-accessCode');
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 15;
+        const skip = (page - 1) * limit;
+
+        const rooms: IRoom[] = await RoomModel.find()
+                                .select('-accessCode')
+                                .skip(skip)
+                                .limit(limit);
 
         res.status(HTTP_STATUS.OK).json({ message: 'All rooms retrieved successfully', data: rooms });
     }catch (error: any) {

@@ -5,7 +5,11 @@ import { HTTP_STATUS, ERROR_CODES } from '../config/constants';
 
 export const getAllBlogs = async (req: Request, res: Response) => {
     try {
-        const blogs: IBlog[] = await BlogModel.find();
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 15;
+        const skip = (page - 1) * limit;
+        
+        const blogs: IBlog[] = await BlogModel.find().skip(skip).limit(limit);
         
         res.status(HTTP_STATUS.OK).json({ message: 'All blogs retrieved successfully', data: blogs });
     } catch (error: any) {
