@@ -93,26 +93,16 @@ body {
 }
 
 .logo {
-    font-family: 'Space Mono', monospace;
-    font-size: 1.8rem;
-    font-weight: 700;
-    color: var(--accent-primary);
     text-decoration: none;
-    letter-spacing: -0.02em;
-    position: relative;
     display: flex;
     align-items: center;
-    gap: 0.5rem;
 }
 
-.logo::before {
-    content: '';
-    width: 8px;
-    height: 8px;
-    background: var(--accent-secondary);
-    border-radius: 50%;
-    box-shadow: 0 0 20px var(--accent-secondary);
-    animation: pulse 2s ease-in-out infinite;
+.logo-img {
+    width: 72px;
+    height: auto;
+    display: block;
+    filter: invert(1);
 }
 
 @keyframes pulse {
@@ -239,24 +229,21 @@ body {
 }
 
 .auth-logo {
-    font-family: 'Space Mono', monospace;
-    font-size: 2.5rem;
-    font-weight: 700;
-    color: var(--accent-primary);
-    margin-bottom: 0.5rem;
+    margin: 0 auto 0.5rem;
     display: inline-flex;
     align-items: center;
-    gap: 0.5rem;
 }
 
-.auth-logo::before {
-    content: '';
-    width: 12px;
-    height: 12px;
-    background: var(--accent-secondary);
-    border-radius: 50%;
-    box-shadow: 0 0 20px var(--accent-secondary);
-    animation: pulse 2s ease-in-out infinite;
+.auth-logo-img {
+    width: 120px;
+    height: auto;
+    display: block;
+    filter: invert(1);
+}
+
+[data-theme="light"] .logo-img,
+[data-theme="light"] .auth-logo-img {
+    filter: invert(0);
 }
 
 .auth-title {
