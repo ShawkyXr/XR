@@ -12,17 +12,19 @@ export interface IUser {
     socketId?: string;
     createdAt?: Date;
     googleId?: string;
+    githubId?: string;
     profilePictureUrl?: string;
 }
 
 const UserSchema = new Schema<IUser>({
     username: { type: String, required: true, unique: true },
     firstName: { type: String, required: true },
-    lastName: { type: String, required: true },
+    lastName: { type: String },
     email: { type: String, required: true, unique: true },
     googleId: { type: String, unique: true, sparse: true },
+    githubId: { type: String, unique: true, sparse: true },
     password: { type: String, required: function(this: IUser): boolean {
-        return !this.googleId;
+        return !this.googleId && !this.githubId;
      }
     },
     token: { type: String},

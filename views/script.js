@@ -318,8 +318,10 @@ async function handleRegister(event) {
 }
 
 function socialLogin(provider) {
-    if (provider === 'google') {
-        window.location.href = `${getServerBaseUrl()}/api/profile/auth/google`;
+    if (provider === 'google' || provider === 'github') {
+        // Keep provider context so callback messages match the provider used.
+        sessionStorage.setItem('oauthProvider', provider);
+        window.location.href = `${getServerBaseUrl()}/api/profile/auth/${provider}`;
         return;
     }
 
@@ -330,9 +332,20 @@ async function handleOAuthCallback() {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
     const authError = params.get('authError');
+    const provider = sessionStorage.getItem('oauthProvider') || 'oauth';
+    const providerLabel = provider.charAt(0).toUpperCase() + provider.slice(1);
 
     if (authError) {
-        showPopupAlert('Google login failed. Please try again.', '⚠️', 3500);
+        let errorMessage = `${providerLabel} login failed. Please try again.`;
+
+        if (authError === 'google_login_failed') {
+            errorMessage = 'Google login failed. Please try again.';
+        } else if (authError === 'github_login_failed') {
+            errorMessage = 'GitHub login failed. Please try again.';
+        }
+
+        showPopupAlert(errorMessage, '⚠️', 3500);
+        sessionStorage.removeItem('oauthProvider');
         params.delete('authError');
         const updatedQuery = params.toString();
         window.history.replaceState({}, document.title, `${window.location.pathname}${updatedQuery ? `?${updatedQuery}` : ''}`);
@@ -357,7 +370,7 @@ async function handleOAuthCallback() {
         const responseData = await response.json();
 
         if (!response.ok || !responseData?.data) {
-            throw new Error(responseData?.message || 'Failed to load profile after Google login');
+            throw new Error(responseData?.message || `Failed to load profile after ${providerLabel} login`);
         }
 
         const userData = responseData.data;
@@ -366,13 +379,14 @@ async function handleOAuthCallback() {
         }
 
         localStorage.setItem('userData', JSON.stringify(userData));
-        showPopupAlert('Logged in with Google successfully.', '✅', 2500);
+        showPopupAlert(`Logged in with ${providerLabel} successfully.`, '✅', 2500);
     } catch (error) {
         console.error('OAuth callback handling failed:', error);
         localStorage.removeItem('authToken');
         localStorage.removeItem('userData');
-        showPopupAlert('Google login completed, but session setup failed.', '⚠️', 4000);
+        showPopupAlert(`${providerLabel} login completed, but session setup failed.`, '⚠️', 4000);
     } finally {
+        sessionStorage.removeItem('oauthProvider');
         params.delete('token');
         const updatedQuery = params.toString();
         window.history.replaceState({}, document.title, `${window.location.pathname}${updatedQuery ? `?${updatedQuery}` : ''}`);

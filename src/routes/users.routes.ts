@@ -12,7 +12,8 @@ import { getMyProfile,
     deleteProfilePicture
 } from "../controllers/users.controller";
 import {
-    googleAuth
+    googleAuth,
+    githubAuth
 } from "../controllers/auth.controller";
 
 export const router = Router();
@@ -32,6 +33,15 @@ router.route("/auth/google/redirect")
     .get(
         passport.authenticate('google', { failureRedirect: `${CLIENT_URL}/?authError=google_login_failed` }),
         googleAuth
+    );
+
+router.route("/auth/github")
+    .get(passport.authenticate('github', { scope: ['user:email'] }));
+
+router.route("/auth/github/redirect")
+    .get(
+        passport.authenticate('github', { failureRedirect: `${CLIENT_URL}/?authError=github_login_failed` }),
+        githubAuth
     );
 
 router.route("/")

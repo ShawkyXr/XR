@@ -1,5 +1,6 @@
 import passport from 'passport';
 import { Strategy as GoogleStrategy } from 'passport-google-oauth20';
+import { Strategy as GitHubStrategy } from 'passport-github';
 import { UserModel } from '../models/user.model';
 
 type AuthUser = {
@@ -49,6 +50,55 @@ passport.use(new GoogleStrategy({
         return done(err);
     }
 }));
+
+
+passport.use(new GitHubStrategy({
+    clientID: process.env.GITHUB_CLIENT_ID as string,
+    clientSecret: process.env.GITHUB_CLIENT_SECRET as string,
+    callbackURL: "/api/profile/auth/github/redirect"
+  },
+    async(accessToken, refreshToken, profile, done) => {
+    try{
+        let user = await UserModel.findOne({ githubId: profile.id });
+
+        if (user){
+            return done(null, {
+                userId: user._id.toString(),
+                email: user.email,
+                username: user.username,
+            });
+        }
+
+        let newUsername = profile.username as string;
+        if (await UserModel.findOne({ username: newUsername })) {
+            const randomSuffix = Math.floor(Math.random() * 10000);
+            newUsername += randomSuffix;
+        }
+
+        const githubEmail = profile.emails?.[0]?.value || `${profile.id}@users.noreply.github.com`;
+        const fallbackFirstName = profile.displayName || profile.username || 'GitHubUser';
+
+        user = new UserModel({
+            username: newUsername,
+            firstName: fallbackFirstName,
+            lastName: '',
+            email: githubEmail,
+            avatar: profile.photos?.[0].value || '',
+            password: '',
+            githubId: profile.id,
+        });
+        await user.save();
+        return done(null, {
+            userId: user._id.toString(),
+            email: user.email,
+            username: user.username,
+        });
+    }catch (err) {
+        return done(err);
+    }
+  }
+));
+
 
 passport.serializeUser((user, done) => {
     const authUser = user as AuthUser;
