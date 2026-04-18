@@ -318,7 +318,65 @@ async function handleRegister(event) {
 }
 
 function socialLogin(provider) {
-    alert(`${provider} login would be implemented here. This would redirect to ${provider}'s OAuth flow.`);
+    if (provider === 'google') {
+        window.location.href = `${getServerBaseUrl()}/api/profile/auth/google`;
+        return;
+    }
+
+    showPopupAlert(`${provider.charAt(0).toUpperCase() + provider.slice(1)} sign-in is not configured yet.`, 'ℹ️', 3500);
+}
+
+async function handleOAuthCallback() {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    const authError = params.get('authError');
+
+    if (authError) {
+        showPopupAlert('Google login failed. Please try again.', '⚠️', 3500);
+        params.delete('authError');
+        const updatedQuery = params.toString();
+        window.history.replaceState({}, document.title, `${window.location.pathname}${updatedQuery ? `?${updatedQuery}` : ''}`);
+        return;
+    }
+
+    if (!token) {
+        return;
+    }
+
+    try {
+        localStorage.setItem('authToken', token);
+
+        const response = await fetch(`${API_BASE_URL}/profile`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        const responseData = await response.json();
+
+        if (!response.ok || !responseData?.data) {
+            throw new Error(responseData?.message || 'Failed to load profile after Google login');
+        }
+
+        const userData = responseData.data;
+        if (userData.id && !userData._id) {
+            userData._id = userData.id;
+        }
+
+        localStorage.setItem('userData', JSON.stringify(userData));
+        showPopupAlert('Logged in with Google successfully.', '✅', 2500);
+    } catch (error) {
+        console.error('OAuth callback handling failed:', error);
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userData');
+        showPopupAlert('Google login completed, but session setup failed.', '⚠️', 4000);
+    } finally {
+        params.delete('token');
+        const updatedQuery = params.toString();
+        window.history.replaceState({}, document.title, `${window.location.pathname}${updatedQuery ? `?${updatedQuery}` : ''}`);
+    }
 }
 
 function logout() {
@@ -1653,9 +1711,10 @@ async function createBlog(event) {
 }
 
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     console.log('DOM Loaded - Initializing...');
-    
+
+    await handleOAuthCallback();
     loadTheme();
     checkAuth();
     initializeRoomTypeToggle();
