@@ -56,7 +56,13 @@ export const loginUser = async (req: Request, res: Response) => {
 
         const expireTime = rememberMe ? '7d' : '1h';
 
-        const token = generateToken({ userId: existUser._id.toString(), email: existUser.email, username: existUser.username }, expireTime);
+        const token = generateToken(
+            {
+            userId: existUser._id.toString(),
+            email: existUser.email,
+            username: existUser.username
+            },expireTime
+        );
         
         const data = existUser.toObject();
         data.token = token;

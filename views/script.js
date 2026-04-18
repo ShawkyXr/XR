@@ -318,7 +318,79 @@ async function handleRegister(event) {
 }
 
 function socialLogin(provider) {
-    alert(`${provider} login would be implemented here. This would redirect to ${provider}'s OAuth flow.`);
+    if (provider === 'google' || provider === 'github') {
+        // Keep provider context so callback messages match the provider used.
+        sessionStorage.setItem('oauthProvider', provider);
+        window.location.href = `${getServerBaseUrl()}/api/profile/auth/${provider}`;
+        return;
+    }
+
+    showPopupAlert(`${provider.charAt(0).toUpperCase() + provider.slice(1)} sign-in is not configured yet.`, 'ℹ️', 3500);
+}
+
+async function handleOAuthCallback() {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    const authError = params.get('authError');
+    const provider = sessionStorage.getItem('oauthProvider') || 'oauth';
+    const providerLabel = provider.charAt(0).toUpperCase() + provider.slice(1);
+
+    if (authError) {
+        let errorMessage = `${providerLabel} login failed. Please try again.`;
+
+        if (authError === 'google_login_failed') {
+            errorMessage = 'Google login failed. Please try again.';
+        } else if (authError === 'github_login_failed') {
+            errorMessage = 'GitHub login failed. Please try again.';
+        }
+
+        showPopupAlert(errorMessage, '⚠️', 3500);
+        sessionStorage.removeItem('oauthProvider');
+        params.delete('authError');
+        const updatedQuery = params.toString();
+        window.history.replaceState({}, document.title, `${window.location.pathname}${updatedQuery ? `?${updatedQuery}` : ''}`);
+        return;
+    }
+
+    if (!token) {
+        return;
+    }
+
+    try {
+        localStorage.setItem('authToken', token);
+
+        const response = await fetch(`${API_BASE_URL}/profile`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        const responseData = await response.json();
+
+        if (!response.ok || !responseData?.data) {
+            throw new Error(responseData?.message || `Failed to load profile after ${providerLabel} login`);
+        }
+
+        const userData = responseData.data;
+        if (userData.id && !userData._id) {
+            userData._id = userData.id;
+        }
+
+        localStorage.setItem('userData', JSON.stringify(userData));
+        showPopupAlert(`Logged in with ${providerLabel} successfully.`, '✅', 2500);
+    } catch (error) {
+        console.error('OAuth callback handling failed:', error);
+        localStorage.removeItem('authToken');
+        localStorage.removeItem('userData');
+        showPopupAlert(`${providerLabel} login completed, but session setup failed.`, '⚠️', 4000);
+    } finally {
+        sessionStorage.removeItem('oauthProvider');
+        params.delete('token');
+        const updatedQuery = params.toString();
+        window.history.replaceState({}, document.title, `${window.location.pathname}${updatedQuery ? `?${updatedQuery}` : ''}`);
+    }
 }
 
 function logout() {
@@ -1653,9 +1725,10 @@ async function createBlog(event) {
 }
 
 // Initialize
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     console.log('DOM Loaded - Initializing...');
-    
+
+    await handleOAuthCallback();
     loadTheme();
     checkAuth();
     initializeRoomTypeToggle();
