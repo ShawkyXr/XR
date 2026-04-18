@@ -36,8 +36,7 @@ passport.use(new GoogleStrategy({
             firstName: profile.name?.givenName || '',
             lastName: profile.name?.familyName || '',
             email: profile.emails?.[0].value || '',
-            avatar: profile.photos?.[0].value || '',
-            password: '',
+            profilePictureUrl: profile.photos?.[0].value || '',
             googleId: profile.id,
         });
         await user.save();
@@ -83,8 +82,7 @@ passport.use(new GitHubStrategy({
             firstName: fallbackFirstName,
             lastName: '',
             email: githubEmail,
-            avatar: profile.photos?.[0].value || '',
-            password: '',
+            profilePictureUrl: profile.photos?.[0].value || '',
             githubId: profile.id,
         });
         await user.save();

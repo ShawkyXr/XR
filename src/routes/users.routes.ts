@@ -2,7 +2,6 @@ import { Router } from "express";
 import multer from 'multer';
 import passport from 'passport';
 import { authenticate } from "../middlewares/auth.middleware";
-import { generateToken } from '../utils/jwt.util';
 import { validator, UserSchema, loginSchema } from "../middlewares/validator.middleware";
 import { getMyProfile,
     getUserProfile,
