@@ -23,7 +23,7 @@ const UserSchema = new Schema<IUser>({
     email: { type: String, required: true, unique: true },
     googleId: { type: String, unique: true, sparse: true },
     githubId: { type: String, unique: true, sparse: true },
-    password: { type: String, required: function(this: IUser): boolean {
+    password: { type: String, select: false, required: function(this: IUser): boolean {
         return !this.googleId && !this.githubId;
      }
     },
