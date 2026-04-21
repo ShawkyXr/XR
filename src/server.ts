@@ -4,6 +4,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import passport from 'passport';
 import session from 'express-session';
+import rateLimit from 'express-rate-limit';
 dotenv.config();
 import connectToDatabase from './config/database';
 import { PORT } from './config/constants';
@@ -24,6 +25,11 @@ app.use(session({
 }));
 app.use(passport.initialize());
 app.use(passport.session());
+app.use(rateLimit({
+    windowMs: 10 * 60 * 1000, // 10 minutes
+    max: 100,
+    message: 'Too many requests from this IP, please try again later.'
+}));
 const server = http.createServer(app);
 
 
